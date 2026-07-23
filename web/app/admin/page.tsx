@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Product } from "@prisma/client";
 import Link from "next/link";
 import DeleteProductButton from "./delete-button";
 
@@ -15,7 +16,7 @@ export default async function AdminDashboard() {
       <section>
         <div className="eyebrow">PRODUCTOS ({products.length})</div>
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-          {products.map((p) => (
+          {products.map((p: Product) => (
             <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ flex: 1 }}>
                 <strong>{p.name}</strong>{" "}
@@ -36,7 +37,7 @@ export default async function AdminDashboard() {
       <section>
         <div className="eyebrow">ULTIMOS PEDIDOS</div>
         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-          {orders.map((o) => (
+          {orders.map((o: (typeof orders)[number]) => (
             <div key={o.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ flex: 1 }}>
                 <strong>{o.product.name}</strong>
