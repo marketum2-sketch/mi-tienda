@@ -16,16 +16,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="container" style={{ paddingTop: 32, paddingBottom: 64 }}>
-      <nav style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 32 }}>
-        <Link href="/admin" style={{ fontWeight: 700 }}>Admin</Link>
-        <Link href="/admin/products/new" style={{ color: "var(--muted)" }}>+ Producto</Link>
-        <Link href="/" style={{ color: "var(--muted)" }}>Ver tienda</Link>
-        <button onClick={logout} className="btn-outline btn" style={{ marginLeft: "auto" }}>
-          Salir
-        </button>
-      </nav>
-      {children}
+    <div style={{ minHeight: "100vh" }}>
+      <div className="navbar">
+        <div className="navbar-inner">
+          <Link href="/admin" className="logo">Admin · ZoneSell</Link>
+          <div className="navbar-links">
+            <Link href="/admin">Panel</Link>
+            <Link href="/admin/products/new">+ Producto</Link>
+            <Link href="/">Ver tienda</Link>
+          </div>
+          <button onClick={logout} className="btn-outline btn" style={{ padding: "8px 16px", fontSize: 14 }}>
+            Salir
+          </button>
+        </div>
+      </div>
+      <div className="container" style={{ paddingTop: 32, paddingBottom: 64 }}>
+        {children}
+      </div>
     </div>
   );
 }

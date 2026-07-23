@@ -45,7 +45,9 @@ async function openOrderTicket(guild, order, product) {
 
   const embed = new EmbedBuilder()
     .setTitle(`Pedido #${order.id.slice(-6)}`)
-    .setDescription(`Producto: **${product.name}**\nPrecio: $${order.priceUsd} USD\nEstado: **${order.status}**`)
+    .setDescription(
+      `Producto: **${product.name}**${order.quantity > 1 ? ` x${order.quantity}` : ""}\nPrecio: $${order.priceUsd} USD\nEstado: **${order.status}**`
+    )
     .setColor(0x5865f2);
 
   await channel.send({ content: `<@${order.discordUserId}>`, embeds: [embed] });
@@ -65,7 +67,9 @@ async function deliverOrder(orderId) {
 
   const embed = new EmbedBuilder()
     .setTitle("Pago confirmado ✅")
-    .setDescription(`Aqui tienes tu producto:\n\n${order.product.deliveryContent}`)
+    .setDescription(
+      `Aqui tienes tu producto${order.quantity > 1 ? ` (x${order.quantity})` : ""}:\n\n${order.product.deliveryContent}`
+    )
     .setColor(0x57f287);
 
   await channel.send({ embeds: [embed] });
@@ -82,6 +86,13 @@ async function deliverOrder(orderId) {
     where: { id: order.id },
     data: { status: "DELIVERED", deliveredAt: new Date() },
   });
+
+  if (order.product.stock !== null) {
+    await prisma.product.update({
+      where: { id: order.product.id },
+      data: { stock: { decrement: order.quantity } },
+    });
+  }
 }
 
 // ---------- Comandos ----------

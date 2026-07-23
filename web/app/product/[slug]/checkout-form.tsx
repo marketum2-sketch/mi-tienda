@@ -6,17 +6,22 @@ type Props = {
   productId: string;
   productName: string;
   priceUsd: number;
+  minOrderUsd: number;
   disabled?: boolean;
 };
 
-export default function CheckoutForm({ productId, productName, priceUsd, disabled }: Props) {
+export default function CheckoutForm({ productId, productName, priceUsd, minOrderUsd, disabled }: Props) {
+  const minQty = Math.max(1, Math.ceil(minOrderUsd / priceUsd));
   const [step, setStep] = useState<"info" | "summary">("info");
+  const [quantity, setQuantity] = useState(minQty);
   const [discordUserId, setDiscordUserId] = useState("");
   const [discordTag, setDiscordTag] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const total = Math.round(priceUsd * quantity * 100) / 100;
 
   async function handlePay() {
     setLoading(true);
@@ -25,7 +30,7 @@ export default function CheckoutForm({ productId, productName, priceUsd, disable
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, discordUserId, discordTag, email }),
+      body: JSON.stringify({ productId, discordUserId, discordTag, email, quantity }),
     });
 
     const data = await res.json();
@@ -55,7 +60,34 @@ export default function CheckoutForm({ productId, productName, priceUsd, disable
           setStep("summary");
         }}
       >
-        <label style={labelStyle}>Email</label>
+        <label style={labelStyle}>Cantidad</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ width: 36, height: 36, padding: 0 }}
+            onClick={() => setQuantity((q) => Math.max(minQty, q - 1))}
+          >
+            −
+          </button>
+          <span style={{ minWidth: 24, textAlign: "center" }}>{quantity}</span>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ width: 36, height: 36, padding: 0 }}
+            onClick={() => setQuantity((q) => q + 1)}
+          >
+            +
+          </button>
+          <span className="price" style={{ marginLeft: "auto" }}>${total.toFixed(2)}</span>
+        </div>
+        {quantity === minQty && minQty > 1 && (
+          <p style={{ fontSize: 12, color: "var(--muted)" }}>
+            Cantidad minima {minQty} para llegar al monto minimo de pago con crypto (${minOrderUsd.toFixed(2)}).
+          </p>
+        )}
+
+        <label style={{ ...labelStyle, marginTop: 12 }}>Email</label>
         <input
           required
           type="email"
@@ -98,8 +130,8 @@ export default function CheckoutForm({ productId, productName, priceUsd, disable
     <div>
       <div className="eyebrow" style={{ marginBottom: 4 }}>Resumen del pedido</div>
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
-        <span>{productName}</span>
-        <span className="price">${priceUsd.toFixed(2)}</span>
+        <span>{productName} {quantity > 1 ? `x${quantity}` : ""}</span>
+        <span className="price">${total.toFixed(2)}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--muted)" }}>
         <span>Se enviara a</span>
@@ -108,7 +140,7 @@ export default function CheckoutForm({ productId, productName, priceUsd, disable
 
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", fontWeight: 700 }}>
         <span>Total</span>
-        <span className="price">${priceUsd.toFixed(2)}</span>
+        <span className="price">${total.toFixed(2)}</span>
       </div>
 
       <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--muted)", marginTop: 12 }}>
@@ -119,7 +151,7 @@ export default function CheckoutForm({ productId, productName, priceUsd, disable
       {error && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{error}</p>}
 
       <button
-        className="btn"
+        className="btn btn-accent"
         onClick={handlePay}
         disabled={loading || !agreed}
         style={{ marginTop: 16, width: "100%" }}
@@ -143,7 +175,7 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "var(--bg)",
   border: "1px solid var(--line)",
-  borderRadius: 8,
+  borderRadius: 10,
   padding: "10px 12px",
   color: "var(--text)",
   fontFamily: "inherit",
