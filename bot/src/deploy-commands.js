@@ -51,6 +51,16 @@ const commands = [
     .setDescription("(Owner) Crea toda la estructura de categorias y canales del server"),
 
   new SlashCommandBuilder()
+    .setName("eliminar-todo")
+    .setDescription("(Owner) Borra TODOS los canales y categorias del servidor. Accion irreversible.")
+    .addStringOption((opt) =>
+      opt
+        .setName("confirmar")
+        .setDescription('Escribi exactamente: ELIMINAR TODO')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
     .setName("stats")
     .setDescription("(Staff) Muestra estadisticas de ventas de la tienda"),
 

@@ -421,6 +421,42 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
+  // ---------- /eliminar-todo ----------
+  if (interaction.commandName === "eliminar-todo") {
+    if (OWNER_ID && interaction.user.id !== OWNER_ID) {
+      return interaction.reply({ content: "Solo el owner puede correr esto.", ephemeral: true });
+    }
+
+    const confirmacion = interaction.options.getString("confirmar");
+    if (confirmacion !== "ELIMINAR TODO") {
+      return interaction.reply({
+        content: 'No se borro nada. Para confirmar de verdad, corre el comando de nuevo y en "confirmar" escribi exactamente: `ELIMINAR TODO`',
+        ephemeral: true,
+      });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const guild = interaction.guild;
+    const channels = guild.channels.cache.filter((c) => c.id !== interaction.channel.id);
+    let deleted = 0;
+
+    for (const channel of channels.values()) {
+      await channel.delete().catch(() => {});
+      deleted++;
+      if (deleted % 10 === 0) {
+        await interaction.editReply(`Eliminando canales... ${deleted}/${channels.size}`).catch(() => {});
+      }
+    }
+
+    const doneEmbed = new EmbedBuilder()
+      .setDescription(
+        `🗑️ Se eliminaron **${deleted}** canales/categorias. Deje este canal (${interaction.channel}) sin borrar para poder confirmarte; lo podes borrar vos a mano si queres.`
+      )
+      .setColor(0xff5c5c);
+    return interaction.editReply({ embeds: [doneEmbed] });
+  }
+
   // ---------- /setup-servidor ----------
   if (interaction.commandName === "setup-servidor") {
     if (OWNER_ID && interaction.user.id !== OWNER_ID) {
@@ -482,6 +518,7 @@ client.on("interactionCreate", async (interaction) => {
         { name: "\u200B", value: "\u200B" },
         { name: "👑 Solo owner", value: "\u200B" },
         { name: "/setup-servidor", value: "Crea toda la estructura de categorias y canales de una sola vez." },
+        { name: "/eliminar-todo confirmar", value: "⚠️ Borra TODOS los canales. Pide escribir `ELIMINAR TODO` para confirmar. Irreversible." },
         { name: "\u200B", value: "\u200B" },
         { name: "🛠️ Solo staff", value: "\u200B" },
         { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
