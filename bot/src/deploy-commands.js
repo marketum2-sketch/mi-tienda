@@ -47,6 +47,10 @@ const commands = [
   new SlashCommandBuilder().setName("ayuda").setDescription("Lista todos los comandos del bot y que hacen"),
 
   new SlashCommandBuilder()
+    .setName("setup-servidor")
+    .setDescription("(Owner) Crea toda la estructura de categorias y canales del server"),
+
+  new SlashCommandBuilder()
     .setName("stats")
     .setDescription("(Staff) Muestra estadisticas de ventas de la tienda"),
 

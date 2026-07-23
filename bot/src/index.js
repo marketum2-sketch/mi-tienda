@@ -11,6 +11,7 @@ import {
   StringSelectMenuBuilder,
 } from "discord.js";
 import { listOrdersByEmail, listOrders, getOrder } from "./shoppex.js";
+import { SERVER_STRUCTURE } from "./serverStructure.js";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
@@ -420,6 +421,54 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
+  // ---------- /setup-servidor ----------
+  if (interaction.commandName === "setup-servidor") {
+    if (OWNER_ID && interaction.user.id !== OWNER_ID) {
+      return interaction.reply({ content: "Solo el owner puede correr esto.", ephemeral: true });
+    }
+    await interaction.deferReply({ ephemeral: true });
+
+    const guild = interaction.guild;
+    let created = 0;
+    const total = SERVER_STRUCTURE.reduce((sum, cat) => sum + 1 + cat.channels.length, 0);
+
+    for (const cat of SERVER_STRUCTURE) {
+      const overwrites = cat.staffOnly
+        ? [
+            { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+            ...(STAFF_ROLE_ID
+              ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel] }]
+              : []),
+            ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
+          ]
+        : [];
+
+      const category = await guild.channels.create({
+        name: cat.category,
+        type: ChannelType.GuildCategory,
+        permissionOverwrites: overwrites,
+      });
+      created++;
+
+      for (const ch of cat.channels) {
+        await guild.channels.create({
+          name: ch.name,
+          type: ch.type === "voice" ? ChannelType.GuildVoice : ChannelType.GuildText,
+          parent: category.id,
+        });
+        created++;
+        if (created % 10 === 0) {
+          await interaction.editReply(`Creando estructura del servidor... ${created}/${total}`);
+        }
+      }
+    }
+
+    const doneEmbed = new EmbedBuilder()
+      .setDescription(`✅ Listo. Se crearon **${created}** elementos (categorias + canales).`)
+      .setColor(0x2ecc71);
+    return interaction.editReply({ content: null, embeds: [doneEmbed] });
+  }
+
   // ---------- /ayuda ----------
   if (interaction.commandName === "ayuda") {
     const embed = new EmbedBuilder()
@@ -430,6 +479,9 @@ client.on("interactionCreate", async (interaction) => {
         { name: "/ticket", value: "Abre un ticket de soporte privado directo (sin pasar por el panel)." },
         { name: "/vouch vendedor producto calificacion [comentario]", value: "Deja tu resena publica despues de comprar." },
         { name: "/timer [minutos]", value: "Inicia un contador (10 min por defecto) y te avisa en el canal cuando termina." },
+        { name: "\u200B", value: "\u200B" },
+        { name: "👑 Solo owner", value: "\u200B" },
+        { name: "/setup-servidor", value: "Crea toda la estructura de categorias y canales de una sola vez." },
         { name: "\u200B", value: "\u200B" },
         { name: "🛠️ Solo staff", value: "\u200B" },
         { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
