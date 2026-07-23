@@ -9,6 +9,11 @@ const commands = [
     .setDescription("(Staff) Publica el panel fijo para abrir tickets con menu de motivos"),
 
   new SlashCommandBuilder()
+    .setName("transferir")
+    .setDescription("(Staff) Pasa este ticket a otra persona")
+    .addUserOption((opt) => opt.setName("usuario").setDescription("A quien se lo pasas").setRequired(true)),
+
+  new SlashCommandBuilder()
     .setName("reclamar")
     .setDescription("(Staff) Te asignas este ticket, usalo dentro del canal del ticket"),
 

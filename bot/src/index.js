@@ -45,6 +45,28 @@ function isTicketChannel(channel) {
   return TICKET_CATEGORY_ID && channel.parentId === TICKET_CATEGORY_ID;
 }
 
+const STATUS_EMOJI = {
+  COMPLETED: "✅",
+  PAID: "✅",
+  PENDING: "⏳",
+  FAILED: "❌",
+  EXPIRED: "⌛",
+  REFUNDED: "↩️",
+  CANCELLED: "🚫",
+};
+
+function statusLabel(status) {
+  if (!status) return "—";
+  const emoji = STATUS_EMOJI[status] || "❔";
+  return `${emoji} ${status}`;
+}
+
+function money(amount, currency) {
+  if (amount == null) return "—";
+  const symbol = { USD: "$", EUR: "€", GBP: "£" }[currency] || "";
+  return `${symbol}${amount} ${symbol ? "" : currency || ""}`.trim();
+}
+
 function getTicketOwnerId(channel) {
   const match = channel.topic?.match(/ticket_owner:(\d+)/);
   return match?.[1] || null;
@@ -223,6 +245,36 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.reply({ content: "Panel publicado.", ephemeral: true });
   }
 
+  // ---------- /transferir ----------
+  if (interaction.commandName === "transferir") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+    if (!isTicketChannel(interaction.channel)) {
+      return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
+    }
+
+    const nuevo = interaction.options.getUser("usuario");
+
+    await interaction.channel.permissionOverwrites.edit(nuevo.id, {
+      ViewChannel: true,
+      SendMessages: true,
+    });
+
+    const embed = new EmbedBuilder()
+      .setDescription(`🔁 Este ticket fue transferido de ${interaction.user} a ${nuevo}.`)
+      .setColor(0x3355ff);
+    await interaction.channel.send({ embeds: [embed] });
+
+    try {
+      await nuevo.send(`🔁 ${interaction.user.tag} te paso un ticket: ${interaction.channel}`);
+    } catch {
+      // DMs cerrados, no pasa nada, ya tiene acceso al canal.
+    }
+
+    return interaction.reply({ content: `Ticket transferido a ${nuevo.tag}.`, ephemeral: true });
+  }
+
   // ---------- /reclamar ----------
   if (interaction.commandName === "reclamar") {
     if (!isStaff(interaction)) {
@@ -231,7 +283,10 @@ client.on("interactionCreate", async (interaction) => {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
     }
-    await interaction.channel.send(`🙋 Ticket reclamado por ${interaction.user}. Te atiende directamente desde ahora.`);
+    const embed = new EmbedBuilder()
+      .setDescription(`🙋 Ticket reclamado por ${interaction.user}. Te atiende directamente desde ahora.`)
+      .setColor(0x3355ff);
+    await interaction.channel.send({ embeds: [embed] });
     return interaction.reply({ content: "Ticket reclamado.", ephemeral: true });
   }
 
@@ -258,7 +313,10 @@ client.on("interactionCreate", async (interaction) => {
       }
     }
 
-    return interaction.editReply(`Cerrados ${closedCount} tickets inactivos hace mas de ${horas}h.`);
+    const resultEmbed = new EmbedBuilder()
+      .setDescription(`🧹 Cerrados **${closedCount}** tickets inactivos hace mas de **${horas}h**.`)
+      .setColor(0x3355ff);
+    return interaction.editReply({ embeds: [resultEmbed] });
   }
 
   // ---------- /stats ----------
@@ -289,13 +347,17 @@ client.on("interactionCreate", async (interaction) => {
           .join("\n") || "Sin datos todavia";
 
       const embed = new EmbedBuilder()
-        .setTitle("Estadisticas de la tienda")
+        .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
+        .setTitle("📊 Estadisticas de la tienda")
         .addFields(
-          { name: "Ingresos totales", value: `$${totalRevenue.toFixed(2)}`, inline: true },
-          { name: "Pedidos completados", value: `${totalOrders}`, inline: true },
-          { name: "Top productos", value: topProducts }
+          { name: "💰 Ingresos totales", value: `$${totalRevenue.toFixed(2)}`, inline: true },
+          { name: "✅ Pedidos completados", value: `${totalOrders}`, inline: true },
+          { name: "\u200B", value: "\u200B", inline: true },
+          { name: "🏆 Top productos", value: topProducts, inline: false }
         )
-        .setColor(0x3355ff);
+        .setColor(0x3355ff)
+        .setFooter({ text: "ZoneSell • Shoppex lookup" })
+        .setTimestamp();
 
       return interaction.editReply({ embeds: [embed] });
     } catch (err) {
@@ -307,11 +369,18 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /timer ----------
   if (interaction.commandName === "timer") {
     const minutos = interaction.options.getInteger("minutos") ?? 10;
-    await interaction.reply(`⏱️ Contador de **${minutos} minuto${minutos === 1 ? "" : "s"}** iniciado.`);
+
+    const startEmbed = new EmbedBuilder()
+      .setDescription(`⏱️ Contador iniciado: **${minutos} minuto${minutos === 1 ? "" : "s"}**`)
+      .setColor(0x3355ff);
+    await interaction.reply({ embeds: [startEmbed] });
 
     setTimeout(async () => {
       try {
-        await interaction.followUp(`⏰ <@${interaction.user.id}> se cumplieron los ${minutos} minutos.`);
+        const doneEmbed = new EmbedBuilder()
+          .setDescription(`⏰ <@${interaction.user.id}> se cumplieron los **${minutos} minuto${minutos === 1 ? "" : "s"}**.`)
+          .setColor(0xffc53d);
+        await interaction.followUp({ embeds: [doneEmbed] });
       } catch {
         // El canal pudo haberse borrado o el bot perdio acceso, no pasa nada.
       }
@@ -364,6 +433,7 @@ client.on("interactionCreate", async (interaction) => {
         { name: "\u200B", value: "\u200B" },
         { name: "🛠️ Solo staff", value: "\u200B" },
         { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
+        { name: "/transferir usuario", value: "Pasa el ticket actual a otra persona (le da acceso al canal)." },
         { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que vos lo estas atendiendo." },
         { name: "/cerrar-todos [horas]", value: "Cierra de una todos los tickets sin actividad hace mas de X horas (48 por defecto)." },
         { name: "/notificar usuario [mensaje]", value: "Le manda un DM prolijo a alguien avisando que le respondiste." },
@@ -429,21 +499,25 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.editReply(`No encontre ninguna factura con ID "${id}".`);
       }
 
-      const items = (order.items || []).map((i) => `${i.product_title} x${i.quantity}`).join("\n") || "—";
+      const items = (order.items || []).map((i) => `• ${i.product_title} \`x${i.quantity}\``).join("\n") || "—";
       const fecha = order.created_at
-        ? new Date(order.created_at * 1000 || order.created_at).toLocaleString("es-ES")
+        ? new Date(order.created_at * 1000 || order.created_at).toLocaleString("es-ES", {
+            dateStyle: "long",
+            timeStyle: "short",
+          })
         : "—";
 
       const embed = new EmbedBuilder()
+        .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
         .setTitle("🧾 Lookup de factura")
         .addFields(
-          { name: "ID", value: `\`${order.id}\``, inline: false },
-          { name: "Estado", value: order.status || "—", inline: true },
+          { name: "Estado", value: statusLabel(order.status), inline: true },
           { name: "Metodo de pago", value: order.gateway || "—", inline: true },
-          { name: "Monto", value: `$${order.total ?? "—"} ${order.currency || ""}`, inline: true },
-          { name: "Fecha de compra", value: fecha, inline: false },
-          { name: "Comprador", value: order.customer_email || "—", inline: false },
-          { name: "Producto(s)", value: items, inline: false }
+          { name: "Monto", value: money(order.total, order.currency), inline: true },
+          { name: "🗓️ Fecha de compra", value: fecha, inline: false },
+          { name: "👤 Comprador", value: order.customer_email || "—", inline: false },
+          { name: "📦 Producto(s)", value: items, inline: false },
+          { name: "🔑 ID", value: `\`${order.id}\``, inline: false }
         )
         .setColor(order.status === "COMPLETED" ? 0x2ecc71 : 0x3355ff)
         .setFooter({ text: "ZoneSell • Shoppex lookup" })
@@ -472,13 +546,18 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.editReply(`No encontre pedidos para ${email}.`);
       }
 
-      const embed = new EmbedBuilder().setTitle(`Pedidos de ${email}`).setColor(0x3355ff);
+      const embed = new EmbedBuilder()
+        .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
+        .setTitle(`📬 Pedidos de ${email}`)
+        .setColor(0x3355ff)
+        .setFooter({ text: "ZoneSell • Shoppex lookup" })
+        .setTimestamp();
 
       for (const o of list.slice(0, 5)) {
         const items = (o.items || []).map((i) => `${i.product_title} x${i.quantity}`).join(", ");
         embed.addFields({
-          name: `#${(o.uniqid || o.id || "").slice(-6)} — ${o.status}`,
-          value: `${items}\nTotal: $${o.total}`,
+          name: `#${(o.uniqid || o.id || "").slice(-6)} · ${statusLabel(o.status)}`,
+          value: `${items}\n💰 ${money(o.total, o.currency)}`,
         });
       }
 
