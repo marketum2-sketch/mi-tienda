@@ -21,6 +21,10 @@ async function shoppexFetch(path) {
   return json.data ?? json;
 }
 
+export async function getOrder(id) {
+  return shoppexFetch(`/orders/${id}`);
+}
+
 export async function listOrders(params = {}) {
   const query = new URLSearchParams(params).toString();
   return shoppexFetch(`/orders${query ? `?${query}` : ""}`);

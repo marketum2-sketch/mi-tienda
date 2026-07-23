@@ -21,10 +21,23 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("vouch")
-    .setDescription("(Staff) Publica una confirmacion de entrega en el canal publico")
-    .addUserOption((opt) => opt.setName("comprador").setDescription("Quien compro").setRequired(true))
-    .addStringOption((opt) => opt.setName("producto").setDescription("Que se entrego").setRequired(true))
-    .addStringOption((opt) => opt.setName("mensaje").setDescription("Comentario opcional").setRequired(false)),
+    .setDescription("Deja una resena publica sobre tu compra")
+    .addUserOption((opt) => opt.setName("vendedor").setDescription("Quien te atendio").setRequired(true))
+    .addStringOption((opt) => opt.setName("producto").setDescription("Que compraste").setRequired(true))
+    .addIntegerOption((opt) =>
+      opt
+        .setName("calificacion")
+        .setDescription("Del 1 al 5")
+        .setRequired(true)
+        .addChoices(
+          { name: "⭐", value: 1 },
+          { name: "⭐⭐", value: 2 },
+          { name: "⭐⭐⭐", value: 3 },
+          { name: "⭐⭐⭐⭐", value: 4 },
+          { name: "⭐⭐⭐⭐⭐", value: 5 }
+        )
+    )
+    .addStringOption((opt) => opt.setName("comentario").setDescription("Contanos como te fue").setRequired(false)),
 
   new SlashCommandBuilder().setName("ayuda").setDescription("Lista todos los comandos del bot y que hacen"),
 
@@ -46,6 +59,11 @@ const commands = [
     .addStringOption((opt) =>
       opt.setName("mensaje").setDescription("Mensaje opcional, por defecto uno generico").setRequired(false)
     ),
+
+  new SlashCommandBuilder()
+    .setName("factura")
+    .setDescription("(Staff) Busca una compra por su ID de factura completo")
+    .addStringOption((opt) => opt.setName("id").setDescription("ID de la factura (invoice)").setRequired(true)),
 
   new SlashCommandBuilder()
     .setName("pedido")

@@ -10,7 +10,7 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
-import { listOrdersByEmail, listOrders } from "./shoppex.js";
+import { listOrdersByEmail, listOrders, getOrder } from "./shoppex.js";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
@@ -359,14 +359,15 @@ client.on("interactionCreate", async (interaction) => {
       .addFields(
         { name: "👤 Para cualquiera", value: "\u200B" },
         { name: "/ticket", value: "Abre un ticket de soporte privado directo (sin pasar por el panel)." },
+        { name: "/vouch vendedor producto calificacion [comentario]", value: "Deja tu resena publica despues de comprar." },
         { name: "/timer [minutos]", value: "Inicia un contador (10 min por defecto) y te avisa en el canal cuando termina." },
         { name: "\u200B", value: "\u200B" },
         { name: "🛠️ Solo staff", value: "\u200B" },
         { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
         { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que vos lo estas atendiendo." },
         { name: "/cerrar-todos [horas]", value: "Cierra de una todos los tickets sin actividad hace mas de X horas (48 por defecto)." },
-        { name: "/vouch comprador producto [mensaje]", value: "Publica una confirmacion de entrega en el canal publico, con reaccion ✅ para que el comprador confirme." },
         { name: "/notificar usuario [mensaje]", value: "Le manda un DM prolijo a alguien avisando que le respondiste." },
+        { name: "/factura id", value: "Busca una compra por su ID de factura completo: estado, metodo de pago, monto, fecha, comprador y producto." },
         { name: "/pedido email", value: "Busca en Shoppex las compras de ese email y muestra su estado." },
         { name: "/stats", value: "Ingresos totales, pedidos completados y top productos, sacado de Shoppex." }
       )
@@ -378,12 +379,10 @@ client.on("interactionCreate", async (interaction) => {
 
   // ---------- /vouch ----------
   if (interaction.commandName === "vouch") {
-    if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
-    }
-    const buyer = interaction.options.getUser("comprador");
+    const vendedor = interaction.options.getUser("vendedor");
     const producto = interaction.options.getString("producto");
-    const mensaje = interaction.options.getString("mensaje");
+    const calificacion = interaction.options.getInteger("calificacion");
+    const comentario = interaction.options.getString("comentario");
 
     const targetChannel = PUBLIC_REVIEWS_CHANNEL_ID
       ? await client.channels.fetch(PUBLIC_REVIEWS_CHANNEL_ID).catch(() => null)
@@ -394,19 +393,67 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const embed = new EmbedBuilder()
-      .setAuthor({ name: "ZoneSell | Vouch" })
-      .setTitle("✅ Entrega confirmada")
-      .setDescription(
-        `${buyer} compro **${producto}**.${mensaje ? `\n\n"${mensaje}"` : ""}\n\n${buyer}, reacciona con ✅ si te llego todo bien.`
+      .setAuthor({ name: `Resena de ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+      .setTitle("✨ Nuevo vouch")
+      .setDescription("¡Gracias por tu feedback!")
+      .addFields(
+        { name: "👤 Cliente", value: `${interaction.user}`, inline: true },
+        { name: "🏆 Calificacion", value: "⭐".repeat(calificacion), inline: true },
+        { name: "📦 Producto", value: producto, inline: true },
+        { name: "🛍️ Vendedor", value: `${vendedor}`, inline: false },
+        ...(comentario ? [{ name: "⚡ Comentario", value: comentario, inline: false }] : [])
       )
-      .setColor(0x2ecc71)
+      .setColor(0xffc53d)
       .setFooter({ text: "ZoneSell" })
       .setTimestamp();
 
-    const vouchMsg = await targetChannel.send({ content: `${buyer}`, embeds: [embed] });
-    await vouchMsg.react("✅").catch(() => {});
+    await targetChannel.send({ embeds: [embed] });
 
-    return interaction.reply({ content: `Vouch publicado en ${targetChannel}.`, ephemeral: true });
+    if (targetChannel.id !== interaction.channel.id) {
+      return interaction.reply({ content: `Vouch publicado en ${targetChannel}. ¡Gracias!`, ephemeral: true });
+    }
+    return interaction.reply({ content: "¡Gracias por tu vouch!", ephemeral: true });
+  }
+
+  // ---------- /factura ----------
+  if (interaction.commandName === "factura") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+    const id = interaction.options.getString("id");
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const order = await getOrder(id);
+      if (!order || !order.id) {
+        return interaction.editReply(`No encontre ninguna factura con ID "${id}".`);
+      }
+
+      const items = (order.items || []).map((i) => `${i.product_title} x${i.quantity}`).join("\n") || "—";
+      const fecha = order.created_at
+        ? new Date(order.created_at * 1000 || order.created_at).toLocaleString("es-ES")
+        : "—";
+
+      const embed = new EmbedBuilder()
+        .setTitle("🧾 Lookup de factura")
+        .addFields(
+          { name: "ID", value: `\`${order.id}\``, inline: false },
+          { name: "Estado", value: order.status || "—", inline: true },
+          { name: "Metodo de pago", value: order.gateway || "—", inline: true },
+          { name: "Monto", value: `$${order.total ?? "—"} ${order.currency || ""}`, inline: true },
+          { name: "Fecha de compra", value: fecha, inline: false },
+          { name: "Comprador", value: order.customer_email || "—", inline: false },
+          { name: "Producto(s)", value: items, inline: false }
+        )
+        .setColor(order.status === "COMPLETED" ? 0x2ecc71 : 0x3355ff)
+        .setFooter({ text: "ZoneSell • Shoppex lookup" })
+        .setTimestamp();
+
+      return interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply("No se pudo consultar esa factura. Revisa el ID y el SHOPPEX_API_KEY.");
+    }
   }
 
   // ---------- /pedido ----------
