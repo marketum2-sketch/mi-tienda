@@ -9,6 +9,26 @@ const commands = [
     .setDescription("(Staff) Publica el panel fijo para abrir tickets con menu de motivos"),
 
   new SlashCommandBuilder()
+    .setName("reclamar")
+    .setDescription("(Staff) Te asignas este ticket, usalo dentro del canal del ticket"),
+
+  new SlashCommandBuilder()
+    .setName("cerrar-todos")
+    .setDescription("(Staff) Cierra tickets inactivos hace mas de X horas")
+    .addIntegerOption((opt) =>
+      opt.setName("horas").setDescription("Horas de inactividad (por defecto 48)").setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("vouch")
+    .setDescription("(Staff) Publica una confirmacion de entrega en el canal publico")
+    .addUserOption((opt) => opt.setName("comprador").setDescription("Quien compro").setRequired(true))
+    .addStringOption((opt) => opt.setName("producto").setDescription("Que se entrego").setRequired(true))
+    .addStringOption((opt) => opt.setName("mensaje").setDescription("Comentario opcional").setRequired(false)),
+
+  new SlashCommandBuilder().setName("ayuda").setDescription("Lista todos los comandos del bot y que hacen"),
+
+  new SlashCommandBuilder()
     .setName("stats")
     .setDescription("(Staff) Muestra estadisticas de ventas de la tienda"),
 

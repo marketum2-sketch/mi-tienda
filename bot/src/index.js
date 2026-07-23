@@ -19,148 +19,165 @@ const client = new Client({
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID;
 const OWNER_ID = process.env.OWNER_DISCORD_ID;
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
+const PUBLIC_REVIEWS_CHANNEL_ID = process.env.PUBLIC_REVIEWS_CHANNEL_ID;
+const INACTIVITY_HOURS = parseFloat(process.env.INACTIVITY_HOURS || "48");
 
 function isStaff(interaction) {
   return !STAFF_ROLE_ID || interaction.member.roles.cache.has(STAFF_ROLE_ID);
 }
 
-client.on("interactionCreate", async (interaction) => {
-  if (interaction.isButton() && interaction.customId === "close_ticket") {
-    await interaction.reply("Cerrando ticket en 5 segundos...");
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+const reasonLabels = {
+  comprar: "Comprar",
+  estado: "Estado de pedido",
+  soporte: "Soporte",
+  reposicion: "Reposicion",
+  entrega: "Entrega manual",
+  otro: "Otro motivo",
+};
+
+// channelId -> timestamp del ultimo mensaje visto (en memoria, se resetea si el bot reinicia)
+const lastActivity = new Map();
+// channelId -> ya se le mando el aviso de "se va a cerrar por inactividad"
+const warnedInactive = new Set();
+
+function isTicketChannel(channel) {
+  return TICKET_CATEGORY_ID && channel.parentId === TICKET_CATEGORY_ID;
+}
+
+function getTicketOwnerId(channel) {
+  const match = channel.topic?.match(/ticket_owner:(\d+)/);
+  return match?.[1] || null;
+}
+
+// ---------- Transcript + borrado ----------
+async function buildTranscript(channel) {
+  let all = [];
+  let before;
+  for (let i = 0; i < 5; i++) {
+    const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (batch.size === 0) break;
+    all.push(...batch.values());
+    before = batch.last().id;
+    if (batch.size < 100) break;
+  }
+  all.reverse();
+  const lines = all.map(
+    (m) => `[${new Date(m.createdTimestamp).toLocaleString("es-ES")}] ${m.author.tag}: ${m.content || "(sin texto / adjunto)"}`
+  );
+  return lines.join("\n") || "Sin mensajes.";
+}
+
+async function closeTicket(channel, closedBy) {
+  try {
+    const transcript = await buildTranscript(channel);
+    if (LOG_CHANNEL_ID) {
+      const logChannel = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+      if (logChannel) {
+        await logChannel.send({
+          content: `📄 Transcript de **${channel.name}** (cerrado por ${closedBy})`,
+          files: [{ attachment: Buffer.from(transcript, "utf-8"), name: `${channel.name}.txt` }],
+        });
+      }
+    }
+  } catch (err) {
+    console.error("No se pudo generar/enviar el transcript:", err);
+  }
+  lastActivity.delete(channel.id);
+  warnedInactive.delete(channel.id);
+  await channel.delete().catch(() => {});
+}
+
+// ---------- Crear ticket (compartido por /ticket y el panel) ----------
+async function createTicketChannel(interaction, channelName, reasonLabel) {
+  const guild = interaction.guild;
+  const existing = guild.channels.cache.find((c) => c.name === channelName);
+  if (existing) {
+    await interaction.reply({ content: `Ya tenes un ticket abierto: ${existing}`, ephemeral: true });
     return;
   }
 
+  const channel = await guild.channels.create({
+    name: channelName,
+    type: ChannelType.GuildText,
+    parent: TICKET_CATEGORY_ID || undefined,
+    topic: `ticket_owner:${interaction.user.id}`,
+    permissionOverwrites: [
+      { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+      { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+      ...(STAFF_ROLE_ID
+        ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
+        : []),
+      ...(OWNER_ID
+        ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
+        : []),
+    ],
+  });
+
+  lastActivity.set(channel.id, Date.now());
+
+  const closeRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar ticket").setStyle(ButtonStyle.Danger)
+  );
+
+  const embed = new EmbedBuilder()
+    .setTitle(reasonLabel ? `Ticket: ${reasonLabel}` : "Ticket de soporte")
+    .setDescription(
+      `${reasonLabel ? `Motivo: **${reasonLabel}**\n\n` : ""}Contanos que necesitas, el staff te atiende pronto.`
+    )
+    .setColor(0x3355ff);
+
+  await channel.send({
+    content: `<@${interaction.user.id}>${OWNER_ID ? ` <@${OWNER_ID}>` : ""}`,
+    embeds: [embed],
+    components: [closeRow],
+  });
+
+  if (OWNER_ID) {
+    try {
+      const owner = await client.users.fetch(OWNER_ID);
+      const dmEmbed = new EmbedBuilder()
+        .setAuthor({ name: "ZoneSell | Sistema de tickets" })
+        .setTitle("🎫 Nuevo ticket")
+        .addFields(
+          { name: "De", value: `${interaction.user}`, inline: true },
+          ...(reasonLabel ? [{ name: "Motivo", value: reasonLabel, inline: true }] : []),
+          { name: "Canal", value: `${channel}`, inline: false }
+        )
+        .setColor(0x3355ff)
+        .setFooter({ text: "ZoneSell" })
+        .setTimestamp();
+      await owner.send({ embeds: [dmEmbed] });
+    } catch {
+      // DMs cerrados, no pasa nada, ya tiene acceso al canal.
+    }
+  }
+
+  await interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+}
+
+client.on("interactionCreate", async (interaction) => {
+  // ---------- Cerrar ticket (boton) ----------
+  if (interaction.isButton() && interaction.customId === "close_ticket") {
+    await interaction.reply("Cerrando ticket en 5 segundos...");
+    setTimeout(() => closeTicket(interaction.channel, interaction.user.tag), 5000);
+    return;
+  }
+
+  // ---------- Menu de motivos del panel ----------
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_reason_select") {
-    const reasonLabels = {
-      comprar: "Comprar",
-      estado: "Estado de pedido",
-      soporte: "Soporte",
-      reposicion: "Reposicion",
-      entrega: "Entrega manual",
-      otro: "Otro motivo",
-    };
     const reasonKey = interaction.values[0];
     const reasonLabel = reasonLabels[reasonKey] || "Otro motivo";
-
-    const guild = interaction.guild;
     const channelName = `${reasonKey}-${interaction.user.username}`.toLowerCase().slice(0, 90);
-    const existing = guild.channels.cache.find((c) => c.name === channelName);
-    if (existing) {
-      return interaction.reply({ content: `Ya tenes un ticket abierto: ${existing}`, ephemeral: true });
-    }
-
-    const channel = await guild.channels.create({
-      name: channelName,
-      type: ChannelType.GuildText,
-      parent: TICKET_CATEGORY_ID || undefined,
-      permissionOverwrites: [
-        { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-        ...(STAFF_ROLE_ID
-          ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
-          : []),
-        ...(OWNER_ID
-          ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
-          : []),
-      ],
-    });
-
-    const closeRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar ticket").setStyle(ButtonStyle.Danger)
-    );
-
-    const embed = new EmbedBuilder()
-      .setTitle(`Ticket: ${reasonLabel}`)
-      .setDescription(`Motivo: **${reasonLabel}**\n\nContanos que necesitas, el staff te atiende pronto.`)
-      .setColor(0x3355ff);
-
-    await channel.send({
-      content: `<@${interaction.user.id}>${OWNER_ID ? ` <@${OWNER_ID}>` : ""}`,
-      embeds: [embed],
-      components: [closeRow],
-    });
-
-    if (OWNER_ID) {
-      try {
-        const owner = await client.users.fetch(OWNER_ID);
-        const dmEmbed = new EmbedBuilder()
-          .setAuthor({ name: "ZoneSell | Sistema de tickets" })
-          .setTitle("🎫 Nuevo ticket")
-          .addFields(
-            { name: "De", value: `${interaction.user}`, inline: true },
-            { name: "Motivo", value: reasonLabel, inline: true },
-            { name: "Canal", value: `${channel}`, inline: false }
-          )
-          .setColor(0x3355ff)
-          .setFooter({ text: "ZoneSell" })
-          .setTimestamp();
-        await owner.send({ embeds: [dmEmbed] });
-      } catch {
-        // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
-      }
-    }
-
-    return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+    return createTicketChannel(interaction, channelName, reasonLabel);
   }
 
   if (!interaction.isChatInputCommand()) return;
 
   // ---------- /ticket ----------
   if (interaction.commandName === "ticket") {
-    const guild = interaction.guild;
-    const existing = guild.channels.cache.find(
-      (c) => c.name === `ticket-${interaction.user.username}`.toLowerCase()
-    );
-    if (existing) {
-      return interaction.reply({ content: `Ya tenes un ticket abierto: ${existing}`, ephemeral: true });
-    }
-
-    const channel = await guild.channels.create({
-      name: `ticket-${interaction.user.username}`,
-      type: ChannelType.GuildText,
-      parent: TICKET_CATEGORY_ID || undefined,
-      permissionOverwrites: [
-        { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-        ...(STAFF_ROLE_ID
-          ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
-          : []),
-        ...(OWNER_ID
-          ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
-          : []),
-      ],
-    });
-
-    const closeRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar ticket").setStyle(ButtonStyle.Danger)
-    );
-
-    await channel.send({
-      content: `<@${interaction.user.id}>${OWNER_ID ? ` <@${OWNER_ID}>` : ""} bienvenido, contanos en que te ayudamos.`,
-      components: [closeRow],
-    });
-
-    if (OWNER_ID) {
-      try {
-        const owner = await client.users.fetch(OWNER_ID);
-        const dmEmbed = new EmbedBuilder()
-          .setAuthor({ name: "ZoneSell | Sistema de tickets" })
-          .setTitle("🎫 Nuevo ticket")
-          .addFields(
-            { name: "De", value: `${interaction.user}`, inline: true },
-            { name: "Canal", value: `${channel}`, inline: true }
-          )
-          .setColor(0x3355ff)
-          .setFooter({ text: "ZoneSell" })
-          .setTimestamp();
-        await owner.send({ embeds: [dmEmbed] });
-      } catch {
-        // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
-      }
-    }
-
-    return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+    const channelName = `ticket-${interaction.user.username}`.toLowerCase();
+    return createTicketChannel(interaction, channelName, null);
   }
 
   // ---------- /panel ----------
@@ -172,7 +189,9 @@ client.on("interactionCreate", async (interaction) => {
     const embed = new EmbedBuilder()
       .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
       .setTitle("🛍️ Centro de soporte")
-      .setDescription("**Bienvenido.** Elegi abajo la categoria que mejor describe por que abris el ticket.\n⚡ Respuesta rapida · 🔒 Atencion privada")
+      .setDescription(
+        "**Bienvenido.** Elegi abajo la categoria que mejor describe por que abris el ticket.\n⚡ Respuesta rapida · 🔒 Atencion privada"
+      )
       .addFields(
         { name: "🛒 Comprar", value: "Ver disponibilidad o precios.", inline: true },
         { name: "📊 Estado de pedido", value: "Segui tu compra.", inline: true },
@@ -204,6 +223,44 @@ client.on("interactionCreate", async (interaction) => {
     return interaction.reply({ content: "Panel publicado.", ephemeral: true });
   }
 
+  // ---------- /reclamar ----------
+  if (interaction.commandName === "reclamar") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+    if (!isTicketChannel(interaction.channel)) {
+      return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
+    }
+    await interaction.channel.send(`🙋 Ticket reclamado por ${interaction.user}. Te atiende directamente desde ahora.`);
+    return interaction.reply({ content: "Ticket reclamado.", ephemeral: true });
+  }
+
+  // ---------- /cerrar-todos ----------
+  if (interaction.commandName === "cerrar-todos") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+    if (!TICKET_CATEGORY_ID) {
+      return interaction.reply({ content: "No hay TICKET_CATEGORY_ID configurado.", ephemeral: true });
+    }
+    const horas = interaction.options.getInteger("horas") ?? 48;
+    await interaction.deferReply({ ephemeral: true });
+
+    const ticketChannels = interaction.guild.channels.cache.filter((c) => c.parentId === TICKET_CATEGORY_ID);
+    let closedCount = 0;
+
+    for (const channel of ticketChannels.values()) {
+      const last = lastActivity.get(channel.id) || channel.createdTimestamp;
+      const hoursSince = (Date.now() - last) / (1000 * 60 * 60);
+      if (hoursSince >= horas) {
+        await closeTicket(channel, `${interaction.user.tag} (cierre masivo)`);
+        closedCount++;
+      }
+    }
+
+    return interaction.editReply(`Cerrados ${closedCount} tickets inactivos hace mas de ${horas}h.`);
+  }
+
   // ---------- /stats ----------
   if (interaction.commandName === "stats") {
     if (!isStaff(interaction)) {
@@ -224,11 +281,12 @@ client.on("interactionCreate", async (interaction) => {
           byProduct[item.product_title] = (byProduct[item.product_title] || 0) + item.quantity;
         }
       }
-      const topProducts = Object.entries(byProduct)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, qty]) => `${name} — ${qty} vendidos`)
-        .join("\n") || "Sin datos todavia";
+      const topProducts =
+        Object.entries(byProduct)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, qty]) => `${name} — ${qty} vendidos`)
+          .join("\n") || "Sin datos todavia";
 
       const embed = new EmbedBuilder()
         .setTitle("Estadisticas de la tienda")
@@ -267,7 +325,8 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
     }
     const user = interaction.options.getUser("usuario");
-    const mensaje = interaction.options.getString("mensaje") || "Te hemos respondido, revisa el mensaje cuando puedas.";
+    const mensaje =
+      interaction.options.getString("mensaje") || "Te hemos respondido, revisa el mensaje cuando puedas.";
 
     const embed = new EmbedBuilder()
       .setAuthor({ name: "ZoneSell | Notificacion" })
@@ -292,6 +351,64 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
+  // ---------- /ayuda ----------
+  if (interaction.commandName === "ayuda") {
+    const embed = new EmbedBuilder()
+      .setAuthor({ name: "ZoneSell | Bot" })
+      .setTitle("📖 Comandos disponibles")
+      .addFields(
+        { name: "👤 Para cualquiera", value: "\u200B" },
+        { name: "/ticket", value: "Abre un ticket de soporte privado directo (sin pasar por el panel)." },
+        { name: "/timer [minutos]", value: "Inicia un contador (10 min por defecto) y te avisa en el canal cuando termina." },
+        { name: "\u200B", value: "\u200B" },
+        { name: "🛠️ Solo staff", value: "\u200B" },
+        { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
+        { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que vos lo estas atendiendo." },
+        { name: "/cerrar-todos [horas]", value: "Cierra de una todos los tickets sin actividad hace mas de X horas (48 por defecto)." },
+        { name: "/vouch comprador producto [mensaje]", value: "Publica una confirmacion de entrega en el canal publico, con reaccion ✅ para que el comprador confirme." },
+        { name: "/notificar usuario [mensaje]", value: "Le manda un DM prolijo a alguien avisando que le respondiste." },
+        { name: "/pedido email", value: "Busca en Shoppex las compras de ese email y muestra su estado." },
+        { name: "/stats", value: "Ingresos totales, pedidos completados y top productos, sacado de Shoppex." }
+      )
+      .setColor(0x3355ff)
+      .setFooter({ text: "ZoneSell • /ayuda para ver esto de nuevo" });
+
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+
+  // ---------- /vouch ----------
+  if (interaction.commandName === "vouch") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+    const buyer = interaction.options.getUser("comprador");
+    const producto = interaction.options.getString("producto");
+    const mensaje = interaction.options.getString("mensaje");
+
+    const targetChannel = PUBLIC_REVIEWS_CHANNEL_ID
+      ? await client.channels.fetch(PUBLIC_REVIEWS_CHANNEL_ID).catch(() => null)
+      : interaction.channel;
+
+    if (!targetChannel) {
+      return interaction.reply({ content: "No encontre el canal de resenas (revisa PUBLIC_REVIEWS_CHANNEL_ID).", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setAuthor({ name: "ZoneSell | Vouch" })
+      .setTitle("✅ Entrega confirmada")
+      .setDescription(
+        `${buyer} compro **${producto}**.${mensaje ? `\n\n"${mensaje}"` : ""}\n\n${buyer}, reacciona con ✅ si te llego todo bien.`
+      )
+      .setColor(0x2ecc71)
+      .setFooter({ text: "ZoneSell" })
+      .setTimestamp();
+
+    const vouchMsg = await targetChannel.send({ content: `${buyer}`, embeds: [embed] });
+    await vouchMsg.react("✅").catch(() => {});
+
+    return interaction.reply({ content: `Vouch publicado en ${targetChannel}.`, ephemeral: true });
+  }
+
   // ---------- /pedido ----------
   if (interaction.commandName === "pedido") {
     if (!isStaff(interaction)) {
@@ -308,9 +425,7 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.editReply(`No encontre pedidos para ${email}.`);
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle(`Pedidos de ${email}`)
-        .setColor(0x3355ff);
+      const embed = new EmbedBuilder().setTitle(`Pedidos de ${email}`).setColor(0x3355ff);
 
       for (const o of list.slice(0, 5)) {
         const items = (o.items || []).map((i) => `${i.product_title} x${i.quantity}`).join(", ");
@@ -327,6 +442,35 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 });
+
+// ---------- Seguimiento de actividad en tickets (para el auto-cierre) ----------
+client.on("messageCreate", (message) => {
+  if (message.author.bot) return;
+  if (!isTicketChannel(message.channel)) return;
+  lastActivity.set(message.channel.id, Date.now());
+  warnedInactive.delete(message.channel.id);
+});
+
+// ---------- Auto-cierre por inactividad ----------
+setInterval(async () => {
+  if (!TICKET_CATEGORY_ID) return;
+  for (const guild of client.guilds.cache.values()) {
+    const ticketChannels = guild.channels.cache.filter((c) => c.parentId === TICKET_CATEGORY_ID);
+    for (const channel of ticketChannels.values()) {
+      const last = lastActivity.get(channel.id) || channel.createdTimestamp;
+      const hoursSince = (Date.now() - last) / (1000 * 60 * 60);
+
+      if (hoursSince >= INACTIVITY_HOURS + 1) {
+        await closeTicket(channel, "auto (inactividad)");
+      } else if (hoursSince >= INACTIVITY_HOURS && !warnedInactive.has(channel.id)) {
+        warnedInactive.add(channel.id);
+        await channel
+          .send("⏳ Este ticket lleva mucho tiempo sin actividad. Se va a cerrar solo en 1 hora si nadie escribe.")
+          .catch(() => {});
+      }
+    }
+  }
+}, 30 * 60 * 1000);
 
 client.once("clientReady", () => {
   console.log(`Bot conectado como ${client.user.tag}`);
