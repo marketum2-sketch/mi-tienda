@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import PaypalButton from "./paypal-button";
 
 type Props = {
   productId: string;
@@ -10,38 +12,31 @@ type Props = {
   disabled?: boolean;
 };
 
-export default function CheckoutForm({ productId, productName, priceUsd, minOrderUsd, disabled }: Props) {
-  const minQty = Math.max(1, Math.ceil(minOrderUsd / priceUsd));
+export default function CheckoutForm({ productId, productName, priceUsd, disabled }: Props) {
+  const router = useRouter();
   const [step, setStep] = useState<"info" | "summary">("info");
-  const [quantity, setQuantity] = useState(minQty);
+  const [quantity, setQuantity] = useState(1);
   const [discordUserId, setDiscordUserId] = useState("");
   const [discordTag, setDiscordTag] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const total = Math.round(priceUsd * quantity * 100) / 100;
 
-  async function handlePay() {
-    setLoading(true);
-    setError(null);
-
-    const res = await fetch("/api/checkout", {
+  async function handleCreateOrder(): Promise<string> {
+    const res = await fetch("/api/paypal/create-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId, discordUserId, discordTag, email, quantity }),
     });
-
     const data = await res.json();
-    setLoading(false);
+    if (!res.ok) throw new Error(data.error || "No se pudo iniciar el pago");
+    return data.paypalOrderId;
+  }
 
-    if (!res.ok) {
-      setError(data.error || "Error al crear el pago");
-      return;
-    }
-
-    window.location.href = data.invoiceUrl;
+  function handleSuccess(orderId: string) {
+    router.push(`/pedido/${orderId}?status=ok`);
   }
 
   if (disabled) {
@@ -66,7 +61,7 @@ export default function CheckoutForm({ productId, productName, priceUsd, minOrde
             type="button"
             className="btn btn-outline"
             style={{ width: 36, height: 36, padding: 0 }}
-            onClick={() => setQuantity((q) => Math.max(minQty, q - 1))}
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
           >
             −
           </button>
@@ -81,11 +76,6 @@ export default function CheckoutForm({ productId, productName, priceUsd, minOrde
           </button>
           <span className="price" style={{ marginLeft: "auto" }}>${total.toFixed(2)}</span>
         </div>
-        {quantity === minQty && minQty > 1 && (
-          <p style={{ fontSize: 12, color: "var(--muted)" }}>
-            Cantidad minima {minQty} para llegar al monto minimo de pago con crypto (${minOrderUsd.toFixed(2)}).
-          </p>
-        )}
 
         <label style={{ ...labelStyle, marginTop: 12 }}>Email</label>
         <input
@@ -143,21 +133,21 @@ export default function CheckoutForm({ productId, productName, priceUsd, minOrde
         <span className="price">${total.toFixed(2)}</span>
       </div>
 
-      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--muted)", marginTop: 12 }}>
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--muted)", margin: "12px 0 16px" }}>
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 2 }} />
         Confirmo que mis datos de Discord son correctos, ahi se entrega el producto.
       </label>
 
-      {error && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{error}</p>}
+      {error && <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 10 }}>{error}</p>}
 
-      <button
-        className="btn btn-accent"
-        onClick={handlePay}
-        disabled={loading || !agreed}
-        style={{ marginTop: 16, width: "100%" }}
-      >
-        {loading ? "Generando factura..." : "Continuar al pago →"}
-      </button>
+      {agreed ? (
+        <PaypalButton onCreateOrder={handleCreateOrder} onSuccess={handleSuccess} onError={setError} />
+      ) : (
+        <button className="btn" disabled style={{ width: "100%" }}>
+          Confirma los datos para pagar
+        </button>
+      )}
+
       <button
         className="btn btn-outline"
         onClick={() => setStep("info")}
