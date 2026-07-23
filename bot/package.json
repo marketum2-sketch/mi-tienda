@@ -2,9 +2,6 @@
   "name": "tienda-bot",
   "version": "1.0.0",
   "type": "module",
-  "prisma": {
-    "schema": "../prisma/schema.prisma"
-  },
   "scripts": {
     "start": "node src/index.js",
     "deploy-commands": "node src/deploy-commands.js",
