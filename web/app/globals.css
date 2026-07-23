@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap');
+
+:root {
+  --bg: #10120f;
+  --panel: #171a15;
+  --line: #2a2e24;
+  --text: #e9e7de;
+  --muted: #8b9082;
+  --accent: #c8ff4d;
+  --accent-dim: #8fb536;
+  --danger: #ff6b5e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+h1, h2, h3 { font-family: 'Fraunces', serif; font-weight: 700; margin: 0; }
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-dim);
+}
+
+a { color: inherit; }
+
+.container { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+.receipt-divider {
+  border: none;
+  border-top: 1px dashed var(--line);
+  margin: 24px 0;
+}
+
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0c0e0a;
+  padding: 10px 18px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.btn:hover { background: var(--accent-dim); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.price { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
+
+.status-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+}
