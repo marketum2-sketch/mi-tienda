@@ -8,6 +8,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import { listOrdersByEmail, listOrders } from "./shoppex.js";
 
@@ -28,6 +29,67 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply("Cerrando ticket en 5 segundos...");
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
     return;
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId === "ticket_reason_select") {
+    const reasonLabels = {
+      comprar: "Comprar / Estado de pedido",
+      soporte: "Soporte",
+      reposicion: "Reposicion",
+      entrega: "Entrega manual",
+      otro: "Otro motivo",
+    };
+    const reasonKey = interaction.values[0];
+    const reasonLabel = reasonLabels[reasonKey] || "Otro motivo";
+
+    const guild = interaction.guild;
+    const channelName = `${reasonKey}-${interaction.user.username}`.toLowerCase().slice(0, 90);
+    const existing = guild.channels.cache.find((c) => c.name === channelName);
+    if (existing) {
+      return interaction.reply({ content: `Ya tenes un ticket abierto: ${existing}`, ephemeral: true });
+    }
+
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: TICKET_CATEGORY_ID || undefined,
+      permissionOverwrites: [
+        { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+        ...(STAFF_ROLE_ID
+          ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
+          : []),
+        ...(OWNER_ID
+          ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
+          : []),
+      ],
+    });
+
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar ticket").setStyle(ButtonStyle.Danger)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle(`Ticket: ${reasonLabel}`)
+      .setDescription(`Motivo: **${reasonLabel}**\n\nContanos que necesitas, el staff te atiende pronto.`)
+      .setColor(0x3355ff);
+
+    await channel.send({
+      content: `<@${interaction.user.id}>${OWNER_ID ? ` <@${OWNER_ID}>` : ""}`,
+      embeds: [embed],
+      components: [closeRow],
+    });
+
+    if (OWNER_ID) {
+      try {
+        const owner = await client.users.fetch(OWNER_ID);
+        await owner.send(`🎫 Nuevo ticket de **${interaction.user.tag}** (${reasonLabel}): ${channel}`);
+      } catch {
+        // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
+      }
+    }
+
+    return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
   }
 
   if (!interaction.isChatInputCommand()) return;
@@ -67,7 +129,52 @@ client.on("interactionCreate", async (interaction) => {
       components: [closeRow],
     });
 
+    if (OWNER_ID) {
+      try {
+        const owner = await client.users.fetch(OWNER_ID);
+        await owner.send(`🎫 Nuevo ticket de **${interaction.user.tag}**: ${channel}`);
+      } catch {
+        // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
+      }
+    }
+
     return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+  }
+
+  // ---------- /panel ----------
+  if (interaction.commandName === "panel") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🛍️ ZoneSell · Soporte")
+      .setDescription("Elegi abajo la categoria que mejor describe por que abris el ticket.")
+      .addFields(
+        { name: "🛒 Comprar / Estado de pedido", value: "Ver disponibilidad o el estado de tu compra.", inline: false },
+        { name: "🛠️ Soporte", value: "Consultas generales o ayuda con algo.", inline: false },
+        { name: "🔄 Reposicion", value: "Tu producto fallo o dejo de funcionar.", inline: false },
+        { name: "📦 Entrega manual", value: "No recibiste tu pedido despues de pagar.", inline: false },
+        { name: "❓ Otro motivo", value: "Cualquier otra cosa que no entre arriba.", inline: false }
+      )
+      .setColor(0x3355ff)
+      .setFooter({ text: "ZoneSell" });
+
+    const select = new StringSelectMenuBuilder()
+      .setCustomId("ticket_reason_select")
+      .setPlaceholder("Selecciona un motivo para abrir tu ticket")
+      .addOptions(
+        { label: "Comprar / Estado de pedido", value: "comprar", emoji: "🛒" },
+        { label: "Soporte", value: "soporte", emoji: "🛠️" },
+        { label: "Reposicion", value: "reposicion", emoji: "🔄" },
+        { label: "Entrega manual", value: "entrega", emoji: "📦" },
+        { label: "Otro motivo", value: "otro", emoji: "❓" }
+      );
+
+    const row = new ActionRowBuilder().addComponents(select);
+
+    await interaction.channel.send({ embeds: [embed], components: [row] });
+    return interaction.reply({ content: "Panel publicado.", ephemeral: true });
   }
 
   // ---------- /stats ----------

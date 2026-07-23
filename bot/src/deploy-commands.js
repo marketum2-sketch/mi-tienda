@@ -5,6 +5,10 @@ const commands = [
   new SlashCommandBuilder().setName("ticket").setDescription("Abre un ticket de soporte privado"),
 
   new SlashCommandBuilder()
+    .setName("panel")
+    .setDescription("(Staff) Publica el panel fijo para abrir tickets con menu de motivos"),
+
+  new SlashCommandBuilder()
     .setName("stats")
     .setDescription("(Staff) Muestra estadisticas de ventas de la tienda"),
 
