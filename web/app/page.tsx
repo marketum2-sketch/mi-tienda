@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Product } from "@prisma/client";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function Home() {
       <hr className="receipt-divider" />
 
       <div className="grid">
-        {products.map((p) => (
+        {products.map((p: Product) => (
           <Link key={p.id} href={`/product/${p.slug}`} className="card" style={{ textDecoration: "none" }}>
             <div className="eyebrow">{p.stock === null ? "STOCK ILIMITADO" : `STOCK: ${p.stock}`}</div>
             <h3 style={{ fontSize: 20, margin: "8px 0" }}>{p.name}</h3>
