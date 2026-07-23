@@ -33,7 +33,8 @@ client.on("interactionCreate", async (interaction) => {
 
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_reason_select") {
     const reasonLabels = {
-      comprar: "Comprar / Estado de pedido",
+      comprar: "Comprar",
+      estado: "Estado de pedido",
       soporte: "Soporte",
       reposicion: "Reposicion",
       entrega: "Entrega manual",
@@ -83,7 +84,18 @@ client.on("interactionCreate", async (interaction) => {
     if (OWNER_ID) {
       try {
         const owner = await client.users.fetch(OWNER_ID);
-        await owner.send(`🎫 Nuevo ticket de **${interaction.user.tag}** (${reasonLabel}): ${channel}`);
+        const dmEmbed = new EmbedBuilder()
+          .setAuthor({ name: "ZoneSell | Sistema de tickets" })
+          .setTitle("🎫 Nuevo ticket")
+          .addFields(
+            { name: "De", value: `${interaction.user}`, inline: true },
+            { name: "Motivo", value: reasonLabel, inline: true },
+            { name: "Canal", value: `${channel}`, inline: false }
+          )
+          .setColor(0x3355ff)
+          .setFooter({ text: "ZoneSell" })
+          .setTimestamp();
+        await owner.send({ embeds: [dmEmbed] });
       } catch {
         // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
       }
@@ -132,7 +144,17 @@ client.on("interactionCreate", async (interaction) => {
     if (OWNER_ID) {
       try {
         const owner = await client.users.fetch(OWNER_ID);
-        await owner.send(`🎫 Nuevo ticket de **${interaction.user.tag}**: ${channel}`);
+        const dmEmbed = new EmbedBuilder()
+          .setAuthor({ name: "ZoneSell | Sistema de tickets" })
+          .setTitle("🎫 Nuevo ticket")
+          .addFields(
+            { name: "De", value: `${interaction.user}`, inline: true },
+            { name: "Canal", value: `${channel}`, inline: true }
+          )
+          .setColor(0x3355ff)
+          .setFooter({ text: "ZoneSell" })
+          .setTimestamp();
+        await owner.send({ embeds: [dmEmbed] });
       } catch {
         // Si el owner tiene los DMs cerrados, no pasa nada, ya tiene acceso al canal.
       }
@@ -148,23 +170,28 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle("🛍️ ZoneSell · Soporte")
-      .setDescription("Elegi abajo la categoria que mejor describe por que abris el ticket.")
+      .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
+      .setTitle("🛍️ Centro de soporte")
+      .setDescription("**Bienvenido.** Elegi abajo la categoria que mejor describe por que abris el ticket.\n⚡ Respuesta rapida · 🔒 Atencion privada")
       .addFields(
-        { name: "🛒 Comprar / Estado de pedido", value: "Ver disponibilidad o el estado de tu compra.", inline: false },
-        { name: "🛠️ Soporte", value: "Consultas generales o ayuda con algo.", inline: false },
-        { name: "🔄 Reposicion", value: "Tu producto fallo o dejo de funcionar.", inline: false },
-        { name: "📦 Entrega manual", value: "No recibiste tu pedido despues de pagar.", inline: false },
-        { name: "❓ Otro motivo", value: "Cualquier otra cosa que no entre arriba.", inline: false }
+        { name: "🛒 Comprar", value: "Ver disponibilidad o precios.", inline: true },
+        { name: "📊 Estado de pedido", value: "Segui tu compra.", inline: true },
+        { name: "🛠️ Soporte", value: "Consultas generales.", inline: true },
+        { name: "🔄 Reposicion", value: "Producto fallo o vencio.", inline: true },
+        { name: "📦 Entrega manual", value: "No recibiste tu pedido.", inline: true },
+        { name: "❓ Otro motivo", value: "Cualquier otra cosa.", inline: true }
       )
-      .setColor(0x3355ff)
-      .setFooter({ text: "ZoneSell" });
+      .setColor(0x7c5cff)
+      .setThumbnail(interaction.guild.iconURL({ size: 256 }) || null)
+      .setFooter({ text: "ZoneSell • Sistema de tickets" })
+      .setTimestamp();
 
     const select = new StringSelectMenuBuilder()
       .setCustomId("ticket_reason_select")
       .setPlaceholder("Selecciona un motivo para abrir tu ticket")
       .addOptions(
-        { label: "Comprar / Estado de pedido", value: "comprar", emoji: "🛒" },
+        { label: "Comprar", value: "comprar", emoji: "🛒" },
+        { label: "Estado de pedido", value: "estado", emoji: "📊" },
         { label: "Soporte", value: "soporte", emoji: "🛠️" },
         { label: "Reposicion", value: "reposicion", emoji: "🔄" },
         { label: "Entrega manual", value: "entrega", emoji: "📦" },
@@ -242,8 +269,20 @@ client.on("interactionCreate", async (interaction) => {
     const user = interaction.options.getUser("usuario");
     const mensaje = interaction.options.getString("mensaje") || "Te hemos respondido, revisa el mensaje cuando puedas.";
 
+    const embed = new EmbedBuilder()
+      .setAuthor({ name: "ZoneSell | Notificacion" })
+      .setTitle("📩 Nueva notificacion")
+      .addFields(
+        { name: "De", value: `${interaction.user}`, inline: true },
+        { name: "Canal", value: `${interaction.channel}`, inline: true },
+        { name: "Mensaje", value: mensaje, inline: false }
+      )
+      .setColor(0x3355ff)
+      .setFooter({ text: "ZoneSell • Sistema de notificaciones" })
+      .setTimestamp();
+
     try {
-      await user.send(`👋 ${mensaje}`);
+      await user.send({ embeds: [embed] });
       return interaction.reply({ content: `Aviso enviado a ${user.tag}.`, ephemeral: true });
     } catch {
       return interaction.reply({
