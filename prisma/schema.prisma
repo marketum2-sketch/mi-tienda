@@ -27,6 +27,7 @@ model Order {
   productId     String
   discordUserId String
   discordTag    String
+  email         String
   status        OrderStatus @default(PENDING)
   priceUsd      Float
   payCurrency   String?     // ej. "btc", "usdttrc20"

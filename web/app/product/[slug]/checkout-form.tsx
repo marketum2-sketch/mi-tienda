@@ -2,21 +2,30 @@
 
 import { useState } from "react";
 
-export default function CheckoutForm({ productId }: { productId: string }) {
+type Props = {
+  productId: string;
+  productName: string;
+  priceUsd: number;
+  disabled?: boolean;
+};
+
+export default function CheckoutForm({ productId, productName, priceUsd, disabled }: Props) {
+  const [step, setStep] = useState<"info" | "summary">("info");
   const [discordUserId, setDiscordUserId] = useState("");
   const [discordTag, setDiscordTag] = useState("");
+  const [email, setEmail] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handlePay() {
     setLoading(true);
     setError(null);
 
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, discordUserId, discordTag }),
+      body: JSON.stringify({ productId, discordUserId, discordTag, email }),
     });
 
     const data = await res.json();
@@ -30,46 +39,111 @@ export default function CheckoutForm({ productId }: { productId: string }) {
     window.location.href = data.invoiceUrl;
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="card">
-      <div className="eyebrow" style={{ marginBottom: 12 }}>DATOS PARA LA ENTREGA</div>
-
-      <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>Tu ID de Discord</label>
-      <input
-        required
-        value={discordUserId}
-        onChange={(e) => setDiscordUserId(e.target.value)}
-        placeholder="ej. 123456789012345678"
-        style={inputStyle}
-      />
-
-      <label style={{ display: "block", fontSize: 13, margin: "12px 0 4px" }}>Tu usuario de Discord</label>
-      <input
-        required
-        value={discordTag}
-        onChange={(e) => setDiscordTag(e.target.value)}
-        placeholder="ej. usuario"
-        style={inputStyle}
-      />
-
-      <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
-        Activa el modo desarrollador en Discord para copiar tu ID: Ajustes → Avanzado → Modo desarrollador.
-      </p>
-
-      {error && <p style={{ color: "var(--danger)", fontSize: 13 }}>{error}</p>}
-
-      <button className="btn" type="submit" disabled={loading} style={{ marginTop: 16, width: "100%" }}>
-        {loading ? "Generando factura..." : "Pagar con crypto"}
+  if (disabled) {
+    return (
+      <button className="btn" disabled style={{ width: "100%" }}>
+        Agotado
       </button>
-    </form>
+    );
+  }
+
+  if (step === "info") {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setStep("summary");
+        }}
+      >
+        <label style={labelStyle}>Email</label>
+        <input
+          required
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@email.com"
+          style={inputStyle}
+        />
+
+        <label style={{ ...labelStyle, marginTop: 12 }}>Tu ID de Discord</label>
+        <input
+          required
+          value={discordUserId}
+          onChange={(e) => setDiscordUserId(e.target.value)}
+          placeholder="ej. 123456789012345678"
+          style={inputStyle}
+        />
+
+        <label style={{ ...labelStyle, marginTop: 12 }}>Tu usuario de Discord</label>
+        <input
+          required
+          value={discordTag}
+          onChange={(e) => setDiscordTag(e.target.value)}
+          placeholder="ej. usuario"
+          style={inputStyle}
+        />
+
+        <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
+          Activa el modo desarrollador en Discord para copiar tu ID: Ajustes → Avanzado → Modo desarrollador.
+        </p>
+
+        <button className="btn" type="submit" style={{ marginTop: 16, width: "100%" }}>
+          Continuar →
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div>
+      <div className="eyebrow" style={{ marginBottom: 4 }}>Resumen del pedido</div>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+        <span>{productName}</span>
+        <span className="price">${priceUsd.toFixed(2)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", fontSize: 14, color: "var(--muted)" }}>
+        <span>Se enviara a</span>
+        <span>{email}</span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", fontWeight: 700 }}>
+        <span>Total</span>
+        <span className="price">${priceUsd.toFixed(2)}</span>
+      </div>
+
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--muted)", marginTop: 12 }}>
+        <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 2 }} />
+        Confirmo que mis datos de Discord son correctos, ahi se entrega el producto.
+      </label>
+
+      {error && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 8 }}>{error}</p>}
+
+      <button
+        className="btn"
+        onClick={handlePay}
+        disabled={loading || !agreed}
+        style={{ marginTop: 16, width: "100%" }}
+      >
+        {loading ? "Generando factura..." : "Continuar al pago →"}
+      </button>
+      <button
+        className="btn btn-outline"
+        onClick={() => setStep("info")}
+        type="button"
+        style={{ marginTop: 8, width: "100%" }}
+      >
+        Volver
+      </button>
+    </div>
   );
 }
 
+const labelStyle: React.CSSProperties = { display: "block", fontSize: 13, marginBottom: 4, color: "var(--muted)" };
 const inputStyle: React.CSSProperties = {
   width: "100%",
   background: "var(--bg)",
   border: "1px solid var(--line)",
-  borderRadius: 4,
+  borderRadius: 8,
   padding: "10px 12px",
   color: "var(--text)",
   fontFamily: "inherit",

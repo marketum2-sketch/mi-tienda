@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendOrderEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
-  const { productId, discordUserId, discordTag } = await req.json();
+  const { productId, discordUserId, discordTag, email } = await req.json();
 
-  if (!productId || !discordUserId || !discordTag) {
+  if (!productId || !discordUserId || !discordTag || !email) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   }
 
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
       productId: product.id,
       discordUserId,
       discordTag,
+      email,
       priceUsd: product.priceUsd,
       status: "PENDING",
     },
@@ -52,6 +54,14 @@ export async function POST(req: NextRequest) {
     where: { id: order.id },
     data: { paymentId: String(invoice.id) },
   });
+
+  sendOrderEmail({
+    to: email,
+    orderId: order.id,
+    productName: product.name,
+    priceUsd: product.priceUsd,
+    invoiceUrl: invoice.invoice_url,
+  }).catch((err) => console.error("Fallo el envio de email:", err));
 
   return NextResponse.json({ orderId: order.id, invoiceUrl: invoice.invoice_url });
 }

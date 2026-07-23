@@ -114,6 +114,37 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
     }
 
+    if (interaction.commandName === "estado") {
+      const shortId = interaction.options.getString("pedido").trim().toLowerCase();
+      const order = await prisma.order.findFirst({
+        where: { id: { endsWith: shortId } },
+        include: { product: true },
+      });
+
+      if (!order) {
+        return interaction.reply({ content: `No encontre ningun pedido con ID "${shortId}".`, ephemeral: true });
+      }
+
+      const estadoTexto = {
+        PENDING: "Esperando el pago",
+        PAID: "Pago confirmado, preparando entrega",
+        DELIVERED: "Entregado",
+        EXPIRED: "Factura expirada",
+        FAILED: "Fallo el pago",
+      }[order.status] || order.status;
+
+      const embed = new EmbedBuilder()
+        .setTitle(`Pedido #${order.id.slice(-6).toUpperCase()}`)
+        .addFields(
+          { name: "Producto", value: order.product.name },
+          { name: "Estado", value: estadoTexto },
+          { name: "Total", value: `$${order.priceUsd.toFixed(2)} USD` }
+        )
+        .setColor(order.status === "DELIVERED" ? 0x57f287 : 0x5865f2);
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
     if (interaction.commandName === "entregar") {
       if (STAFF_ROLE_ID && !interaction.member.roles.cache.has(STAFF_ROLE_ID)) {
         return interaction.reply({ content: "No tienes permiso.", ephemeral: true });

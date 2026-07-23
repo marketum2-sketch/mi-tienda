@@ -4,6 +4,12 @@ import { REST, Routes, SlashCommandBuilder } from "discord.js";
 const commands = [
   new SlashCommandBuilder().setName("ticket").setDescription("Abre un ticket de soporte"),
   new SlashCommandBuilder()
+    .setName("estado")
+    .setDescription("Consulta el estado de un pedido")
+    .addStringOption((opt) =>
+      opt.setName("pedido").setDescription("ID corto del pedido (los ultimos 6 caracteres)").setRequired(true)
+    ),
+  new SlashCommandBuilder()
     .setName("entregar")
     .setDescription("(Staff) Entrega manualmente un pedido")
     .addStringOption((opt) => opt.setName("pedido").setDescription("ID del pedido").setRequired(true)),

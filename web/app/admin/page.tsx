@@ -20,7 +20,7 @@ export default async function AdminDashboard() {
             <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ flex: 1 }}>
                 <strong>{p.name}</strong>{" "}
-                <span className="status-pill" style={{ marginLeft: 8 }}>{p.active ? "activo" : "oculto"}</span>
+                <span className="badge" style={{ marginLeft: 8 }}>{p.active ? "activo" : "oculto"}</span>
                 <div style={{ color: "var(--muted)", fontSize: 13 }}>/{p.slug}</div>
               </div>
               <div className="price">${p.priceUsd.toFixed(2)}</div>
@@ -32,7 +32,7 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
-      <hr className="receipt-divider" />
+      <hr style={{ border: "none", borderTop: "1px solid var(--line)", margin: "24px 0" }} />
 
       <section>
         <div className="eyebrow">ULTIMOS PEDIDOS</div>
@@ -44,7 +44,7 @@ export default async function AdminDashboard() {
                 <div style={{ color: "var(--muted)", fontSize: 13 }}>{o.discordTag} · #{o.id.slice(-6)}</div>
               </div>
               <div className="price">${o.priceUsd.toFixed(2)}</div>
-              <span className="status-pill">{o.status}</span>
+              <span className="badge">{o.status}</span>
             </div>
           ))}
           {orders.length === 0 && <p style={{ color: "var(--muted)" }}>Todavia no hay pedidos.</p>}
