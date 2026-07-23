@@ -1,55 +1,35 @@
 import { prisma } from "@/lib/prisma";
 import type { Product } from "@prisma/client";
 import Link from "next/link";
-import DeleteProductButton from "./delete-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboard() {
-  const [products, orders] = await Promise.all([
-    prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 20, include: { product: true } }),
-  ]);
+export default async function Home() {
+  const products = await prisma.product.findMany({ where: { active: true }, orderBy: { createdAt: "desc" } });
 
   return (
-    <div>
-      <section>
-        <div className="eyebrow">PRODUCTOS ({products.length})</div>
-        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-          {products.map((p: Product) => (
-            <div key={p.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <strong>{p.name}</strong>{" "}
-                <span className="status-pill" style={{ marginLeft: 8 }}>{p.active ? "activo" : "oculto"}</span>
-                <div style={{ color: "var(--muted)", fontSize: 13 }}>/{p.slug}</div>
-              </div>
-              <div className="price">${p.priceUsd.toFixed(2)}</div>
-              <Link href={`/admin/products/${p.id}`} className="btn btn-outline">Editar</Link>
-              <DeleteProductButton productId={p.id} />
-            </div>
-          ))}
-          {products.length === 0 && <p style={{ color: "var(--muted)" }}>No hay productos todavia.</p>}
-        </div>
-      </section>
+    <main className="container" style={{ paddingTop: 64, paddingBottom: 64 }}>
+      <div className="eyebrow">// ENTREGA DIGITAL INSTANTANEA</div>
+      <h1 style={{ fontSize: 48, marginTop: 8 }}>Catalogo</h1>
+      <p style={{ color: "var(--muted)", maxWidth: 520 }}>
+        Compra, paga con crypto y recibe tu producto al instante en tu ticket de Discord.
+      </p>
 
       <hr className="receipt-divider" />
 
-      <section>
-        <div className="eyebrow">ULTIMOS PEDIDOS</div>
-        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-          {orders.map((o: (typeof orders)[number]) => (
-            <div key={o.id} className="card" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <strong>{o.product.name}</strong>
-                <div style={{ color: "var(--muted)", fontSize: 13 }}>{o.discordTag} · #{o.id.slice(-6)}</div>
-              </div>
-              <div className="price">${o.priceUsd.toFixed(2)}</div>
-              <span className="status-pill">{o.status}</span>
-            </div>
-          ))}
-          {orders.length === 0 && <p style={{ color: "var(--muted)" }}>Todavia no hay pedidos.</p>}
-        </div>
-      </section>
-    </div>
+      <div className="grid">
+        {products.map((p: Product) => (
+          <Link key={p.id} href={`/product/${p.slug}`} className="card" style={{ textDecoration: "none" }}>
+            <div className="eyebrow">{p.stock === null ? "STOCK ILIMITADO" : `STOCK: ${p.stock}`}</div>
+            <h3 style={{ fontSize: 20, margin: "8px 0" }}>{p.name}</h3>
+            <p style={{ color: "var(--muted)", fontSize: 14, minHeight: 40 }}>{p.description}</p>
+            <div className="price" style={{ fontSize: 22, marginTop: 12 }}>${p.priceUsd.toFixed(2)}</div>
+          </Link>
+        ))}
+        {products.length === 0 && (
+          <p style={{ color: "var(--muted)" }}>Aun no hay productos publicados.</p>
+        )}
+      </div>
+    </main>
   );
 }
