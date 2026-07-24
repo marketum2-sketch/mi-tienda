@@ -1,8 +1,23 @@
 import "dotenv/config";
-import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 
 const commands = [
   new SlashCommandBuilder().setName("ticket").setDescription("Abre un ticket de soporte privado"),
+
+  new SlashCommandBuilder()
+    .setName("editar-mensaje")
+    .setDescription("(Staff) Publica o edita un mensaje del bot en un canal")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .addChannelOption((opt) =>
+      opt.setName("canal").setDescription("Canal donde publicar/editar").setRequired(true).addChannelTypes(ChannelType.GuildText)
+    )
+    .addStringOption((opt) => opt.setName("texto").setDescription("Contenido del mensaje").setRequired(true))
+    .addStringOption((opt) =>
+      opt
+        .setName("id_mensaje")
+        .setDescription("ID de un mensaje del bot ya existente, para editarlo en vez de crear uno nuevo")
+        .setRequired(false)
+    ),
 
   new SlashCommandBuilder()
     .setName("panel")

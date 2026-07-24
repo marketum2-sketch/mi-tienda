@@ -226,6 +226,38 @@ client.on("interactionCreate", async (interaction) => {
     return createTicketChannel(interaction, channelName, null);
   }
 
+  // ---------- /editar-mensaje ----------
+  if (interaction.commandName === "editar-mensaje") {
+    if (!isStaff(interaction)) {
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
+    }
+    const canal = interaction.options.getChannel("canal");
+    const texto = interaction.options.getString("texto");
+    const idMensaje = interaction.options.getString("id_mensaje");
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const embed = new EmbedBuilder().setDescription(texto).setColor(0x3355ff);
+
+    try {
+      if (idMensaje) {
+        const msg = await canal.messages.fetch(idMensaje);
+        if (msg.author.id !== client.user.id) {
+          return interaction.editReply("Ese mensaje no lo escribio el bot, no lo puedo editar.");
+        }
+        await msg.edit({ embeds: [embed] });
+        return interaction.editReply(`Mensaje editado en ${canal}.`);
+      }
+      const sent = await canal.send({ embeds: [embed] });
+      return interaction.editReply(
+        `Mensaje publicado en ${canal}.\nID: \`${sent.id}\` (guardalo si despues queres editarlo con este mismo comando)`
+      );
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply("No se pudo publicar/editar el mensaje. Revisa el canal y el ID.");
+    }
+  }
+
   // ---------- /panel ----------
   if (interaction.commandName === "panel") {
     if (!isStaff(interaction)) {
