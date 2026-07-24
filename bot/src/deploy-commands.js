@@ -8,10 +8,14 @@ const commands = [
     .setName("editar-mensaje")
     .setDescription("(Staff) Publica o edita un mensaje del bot en un canal")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addChannelOption((opt) =>
-      opt.setName("canal").setDescription("Canal donde publicar/editar").setRequired(true).addChannelTypes(ChannelType.GuildText)
-    )
     .addStringOption((opt) => opt.setName("texto").setDescription("Contenido del mensaje").setRequired(true))
+    .addChannelOption((opt) =>
+      opt
+        .setName("canal")
+        .setDescription("Canal donde publicar/editar (por defecto, el canal actual)")
+        .setRequired(false)
+        .addChannelTypes(ChannelType.GuildText)
+    )
     .addStringOption((opt) =>
       opt
         .setName("id_mensaje")

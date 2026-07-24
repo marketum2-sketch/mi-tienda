@@ -231,7 +231,7 @@ client.on("interactionCreate", async (interaction) => {
     if (!isStaff(interaction)) {
       return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
-    const canal = interaction.options.getChannel("canal");
+    const canal = interaction.options.getChannel("canal") || interaction.channel;
     const texto = interaction.options.getString("texto");
     const idMensaje = interaction.options.getString("id_mensaje");
 
