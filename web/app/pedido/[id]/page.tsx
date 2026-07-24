@@ -18,7 +18,7 @@ export default async function OrderStatusPage({ params }: { params: { id: string
           <p>Estado: <span className="badge ok">{order.status}</span></p>
           <p style={{ color: "var(--muted)", fontSize: 14 }}>
             En cuanto la red confirme el pago se creara tu ticket en Discord y recibiras el producto ahi y por DM.
-            Esta pagina no se actualiza sola, podes recargarla en unos minutos.
+            Esta pagina no se actualiza sola, puedes recargarla en unos minutos.
           </p>
         </div>
       </main>

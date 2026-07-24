@@ -25,10 +25,10 @@
 6. Entra a `https://tu-dominio.com/admin`, pon la contraseña que definiste en `ADMIN_PASSWORD` y desde ahi crea, edita y borra productos, y mira los pedidos. No hace falta tocar la base de datos a mano.
 
 ## Panel de admin (`/admin`)
-- Login con una sola contraseña (`ADMIN_PASSWORD`), guardada como cookie firmada (`ADMIN_SECRET`) — no hay usuarios ni roles, es para vos como dueño de la tienda.
+- Login con una sola contraseña (`ADMIN_PASSWORD`), guardada como cookie firmada (`ADMIN_SECRET`) — no hay usuarios ni roles, es para tú como dueño de la tienda.
 - `/admin` — lista de productos (con boton editar/borrar) y ultimos 20 pedidos con su estado.
 - `/admin/products/new` y `/admin/products/[id]` — alta y edicion de producto: nombre, descripcion, precio, stock (vacio = ilimitado) y el "contenido a entregar" (la key/link/texto que el bot manda automaticamente al confirmarse el pago).
-- Si algun dia queres mas de una persona con acceso, hay que migrar esto a usuarios con contraseña propia (avisame y lo armamos).
+- Si algun dia queres mas de una persona con acceso, hay que migrar esto a usuarios con contraseña propia (avísame y lo armamos).
 
 ## Pendiente / siguientes pasos sugeridos
 - Reintentos si el webhook de NOWPayments falla.

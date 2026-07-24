@@ -113,10 +113,12 @@ async function closeTicket(channel, closedBy) {
 
 // ---------- Crear ticket (compartido por /ticket y el panel) ----------
 async function createTicketChannel(interaction, channelName, reasonLabel) {
+  await interaction.deferReply({ ephemeral: true });
+
   const guild = interaction.guild;
   const existing = guild.channels.cache.find((c) => c.name === channelName);
   if (existing) {
-    await interaction.reply({ content: `Ya tenes un ticket abierto: ${existing}`, ephemeral: true });
+    await interaction.editReply({ content: `Ya tienes un ticket abierto: ${existing}` });
     return;
   }
 
@@ -176,7 +178,7 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
     }
   }
 
-  await interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+  await interaction.editReply({ content: `Ticket creado: ${channel}` });
 }
 
 client.on("interactionCreate", async (interaction) => {
@@ -206,7 +208,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /panel ----------
   if (interaction.commandName === "panel") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
 
     const embed = new EmbedBuilder()
@@ -249,13 +251,14 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /transferir ----------
   if (interaction.commandName === "transferir") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
     }
 
     const nuevo = interaction.options.getUser("usuario");
+    await interaction.deferReply({ ephemeral: true });
 
     await interaction.channel.permissionOverwrites.edit(nuevo.id, {
       ViewChannel: true,
@@ -273,13 +276,13 @@ client.on("interactionCreate", async (interaction) => {
       // DMs cerrados, no pasa nada, ya tiene acceso al canal.
     }
 
-    return interaction.reply({ content: `Ticket transferido a ${nuevo.tag}.`, ephemeral: true });
+    return interaction.editReply({ content: `Ticket transferido a ${nuevo.tag}.` });
   }
 
   // ---------- /reclamar ----------
   if (interaction.commandName === "reclamar") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
@@ -294,7 +297,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /cerrar-todos ----------
   if (interaction.commandName === "cerrar-todos") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     if (!TICKET_CATEGORY_ID) {
       return interaction.reply({ content: "No hay TICKET_CATEGORY_ID configurado.", ephemeral: true });
@@ -323,7 +326,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /stats ----------
   if (interaction.commandName === "stats") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     await interaction.deferReply({ ephemeral: true });
 
@@ -392,7 +395,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /notificar ----------
   if (interaction.commandName === "notificar") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     const user = interaction.options.getUser("usuario");
     const mensaje =
@@ -410,13 +413,14 @@ client.on("interactionCreate", async (interaction) => {
       .setFooter({ text: "ZoneSell • Sistema de notificaciones" })
       .setTimestamp();
 
+    await interaction.deferReply({ ephemeral: true });
+
     try {
       await user.send({ embeds: [embed] });
-      return interaction.reply({ content: `Aviso enviado a ${user.tag}.`, ephemeral: true });
+      return interaction.editReply({ content: `Aviso enviado a ${user.tag}.` });
     } catch {
-      return interaction.reply({
+      return interaction.editReply({
         content: `No se pudo enviar el DM a ${user.tag} (puede tener los mensajes privados cerrados).`,
-        ephemeral: true,
       });
     }
   }
@@ -451,7 +455,7 @@ client.on("interactionCreate", async (interaction) => {
 
     const doneEmbed = new EmbedBuilder()
       .setDescription(
-        `🗑️ Se eliminaron **${deleted}** canales/categorias. Deje este canal (${interaction.channel}) sin borrar para poder confirmarte; lo podes borrar vos a mano si queres.`
+        `🗑️ Se eliminaron **${deleted}** canales/categorias. Deje este canal (${interaction.channel}) sin borrar para poder confirmarte; lo puedes borrar tú a mano si queres.`
       )
       .setColor(0xff5c5c);
     return interaction.editReply({ embeds: [doneEmbed] });
@@ -466,6 +470,7 @@ client.on("interactionCreate", async (interaction) => {
 
     const guild = interaction.guild;
     let created = 0;
+    let ticketCategoryId = null;
     const total = SERVER_STRUCTURE.reduce((sum, cat) => sum + 1 + cat.channels.length, 0);
 
     for (const cat of SERVER_STRUCTURE) {
@@ -486,6 +491,10 @@ client.on("interactionCreate", async (interaction) => {
       });
       created++;
 
+      if (cat.ticketCategory) {
+        ticketCategoryId = category.id;
+      }
+
       for (const ch of cat.channels) {
         await guild.channels.create({
           name: ch.name,
@@ -500,9 +509,78 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     const doneEmbed = new EmbedBuilder()
-      .setDescription(`✅ Listo. Se crearon **${created}** elementos (categorias + canales).`)
+      .setDescription(
+        `✅ Listo. Se crearon **${created}** elementos (categorias + canales).` +
+          (ticketCategoryId
+            ? `\n\n⚠️ **Importante:** actualiza en Railway (servicio bot, Variables) esto:\n\`TICKET_CATEGORY_ID=${ticketCategoryId}\``
+            : "")
+      )
       .setColor(0x2ecc71);
     return interaction.editReply({ content: null, embeds: [doneEmbed] });
+  }
+
+  // ---------- /invitar ----------
+  if (interaction.commandName === "invitar") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const invite = await interaction.channel.createInvite({
+        maxAge: 0,
+        maxUses: 0,
+        unique: true,
+      });
+      const embed = new EmbedBuilder()
+        .setDescription(
+          `🔗 Tu link de invitación personal:\n**https://discord.gg/${invite.code}**\n\nCada persona que se una con este link cuenta para tu ranking. Usa \`/ranking-invitados\` para ver cuántos llevas.`
+        )
+        .setColor(0x3355ff);
+      return interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply(
+        "No se pudo crear el link. El bot necesita el permiso 'Crear invitación' en este canal."
+      );
+    }
+  }
+
+  // ---------- /ranking-invitados ----------
+  if (interaction.commandName === "ranking-invitados") {
+    await interaction.deferReply();
+    try {
+      const invites = await interaction.guild.invites.fetch();
+      const byInviter = new Map();
+
+      for (const inv of invites.values()) {
+        if (!inv.inviter) continue;
+        const current = byInviter.get(inv.inviter.id) || 0;
+        byInviter.set(inv.inviter.id, current + (inv.uses || 0));
+      }
+
+      const ranking = [...byInviter.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      if (ranking.length === 0) {
+        return interaction.editReply("Todavía no hay invitaciones registradas.");
+      }
+
+      const medals = ["🥇", "🥈", "🥉"];
+      const lines = ranking.map(
+        ([id, uses], i) => `${medals[i] || `${i + 1}.`} <@${id}> — **${uses}** invitados`
+      );
+
+      const embed = new EmbedBuilder()
+        .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
+        .setTitle("🏆 Ranking de invitaciones")
+        .setDescription(lines.join("\n"))
+        .setColor(0xffc53d)
+        .setFooter({ text: "ZoneSell" })
+        .setTimestamp();
+
+      return interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply(
+        "No se pudieron consultar las invitaciones. El bot necesita el permiso 'Gestionar servidor'."
+      );
+    }
   }
 
   // ---------- /ayuda ----------
@@ -514,6 +592,8 @@ client.on("interactionCreate", async (interaction) => {
         { name: "👤 Para cualquiera", value: "\u200B" },
         { name: "/ticket", value: "Abre un ticket de soporte privado directo (sin pasar por el panel)." },
         { name: "/vouch vendedor producto calificacion [comentario]", value: "Deja tu resena publica despues de comprar." },
+        { name: "/invitar", value: "Genera tu link de invitacion personal para traer gente al servidor." },
+        { name: "/ranking-invitados", value: "Muestra quien ha invitado mas gente, para repartir recompensas." },
         { name: "/timer [minutos]", value: "Inicia un contador (10 min por defecto) y te avisa en el canal cuando termina." },
         { name: "\u200B", value: "\u200B" },
         { name: "👑 Solo owner", value: "\u200B" },
@@ -523,7 +603,7 @@ client.on("interactionCreate", async (interaction) => {
         { name: "🛠️ Solo staff", value: "\u200B" },
         { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
         { name: "/transferir usuario", value: "Pasa el ticket actual a otra persona (le da acceso al canal)." },
-        { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que vos lo estas atendiendo." },
+        { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que tú lo estas atendiendo." },
         { name: "/cerrar-todos [horas]", value: "Cierra de una todos los tickets sin actividad hace mas de X horas (48 por defecto)." },
         { name: "/notificar usuario [mensaje]", value: "Le manda un DM prolijo a alguien avisando que le respondiste." },
         { name: "/factura id", value: "Busca una compra por su ID de factura completo: estado, metodo de pago, monto, fecha, comprador y producto." },
@@ -577,7 +657,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /factura ----------
   if (interaction.commandName === "factura") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     const id = interaction.options.getString("id");
     await interaction.deferReply({ ephemeral: true });
@@ -622,7 +702,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- /pedido ----------
   if (interaction.commandName === "pedido") {
     if (!isStaff(interaction)) {
-      return interaction.reply({ content: "No tenes permiso para esto.", ephemeral: true });
+      return interaction.reply({ content: "No tienes permiso para esto.", ephemeral: true });
     }
     const email = interaction.options.getString("email");
     await interaction.deferReply({ ephemeral: true });

@@ -41,6 +41,11 @@ export const SERVER_STRUCTURE = [
     ],
   },
   {
+    category: "🎫 TICKETS",
+    ticketCategory: true,
+    channels: [],
+  },
+  {
     category: "🎫 SOPORTE",
     channels: [
       { name: "panel-tickets", type: "text" },

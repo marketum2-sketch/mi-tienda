@@ -14,7 +14,7 @@ pegamos en las variables de entorno de Railway.
 7. En Discord (con el modo desarrollador activado: Ajustes de usuario -> Avanzado -> Modo desarrollador):
    - Click derecho sobre el nombre de tu servidor -> "Copiar ID". Eso es `GUILD_ID`.
    - Crea una categoria llamada "Tickets", click derecho -> "Copiar ID". Eso es `TICKET_CATEGORY_ID`.
-   - Crea un rol "Staff" y asignatelo a vos mismo, click derecho sobre el rol en Ajustes del servidor -> Roles -> "Copiar ID". Eso es `STAFF_ROLE_ID`.
+   - Crea un rol "Staff" y asignatelo a tú mismo, click derecho sobre el rol en Ajustes del servidor -> Roles -> "Copiar ID". Eso es `STAFF_ROLE_ID`.
 
 ## 2. NOWPayments (pagos con crypto)
 
@@ -40,13 +40,13 @@ Necesitas una cuenta en https://github.com (gratis).
 
 ## 4. Railway
 
-1. Crea cuenta en https://railway.app (podes entrar con GitHub).
+1. Crea cuenta en https://railway.app (puedes entrar con GitHub).
 2. "New Project" -> "Deploy from GitHub repo" -> elegi `mi-tienda`.
 3. Agrega una base de datos: "New" -> "Database" -> "PostgreSQL". Railway te da un `DATABASE_URL` automatico.
 4. Vas a necesitar 2 servicios corriendo desde el mismo repo (web y bot):
    - Servicio 1 ("web"): en Settings -> "Root Directory" pone `web`. Build command: `npm install && npx prisma generate && npm run build`. Start command: `npm start`.
    - Servicio 2 ("bot"): "New" -> "GitHub repo" (el mismo repo otra vez) -> Root Directory `bot`. Build command: `npm install`. Start command: `npm start`.
-5. En cada servicio, pestaña "Variables", pega las del `.env.example` con tus valores reales. El `DATABASE_URL` de Postgres se lo podes "linkear" desde Railway (boton de referencia a otra variable) en vez de copiarlo a mano, para que si cambia se actualice solo.
+5. En cada servicio, pestaña "Variables", pega las del `.env.example` con tus valores reales. El `DATABASE_URL` de Postgres se lo puedes "linkear" desde Railway (boton de referencia a otra variable) en vez de copiarlo a mano, para que si cambia se actualice solo.
 6. En el servicio "web", Railway te da un dominio publico (Settings -> Networking -> "Generate Domain"). Ese es tu `PUBLIC_URL`. Actualiza esa variable con el dominio real.
 7. Volve a NOWPayments y pone la URL de IPN: `https://TU-DOMINIO-RAILWAY/api/webhooks/nowpayments`.
 8. En el servicio "bot", Railway tambien necesita exponer el puerto interno (`BOT_INTERNAL_PORT`) para que "web" le pueda avisar los pagos. La forma mas simple: activa "Private Networking" en el proyecto (Railway lo activa solo si los servicios estan en el mismo proyecto) y en la variable `BOT_INTERNAL_URL` del servicio web pone `http://<nombre-del-servicio-bot>.railway.internal:4001`.
@@ -63,5 +63,5 @@ railway run --service bot npm run deploy-commands
 ## 6. Probar
 
 1. Entra a `https://TU-DOMINIO-RAILWAY/admin`, logueate con `ADMIN_PASSWORD` y crea un producto de prueba.
-2. Abrí la tienda, comprá ese producto con un monto chico, y fijate que se cree el ticket en Discord y te llegue la entrega.
+2. Abrí la tienda, comprá ese producto con un monto chico, y fíjate que se cree el ticket en Discord y te llegue la entrega.
 3. Si algo falla, mira los logs en Railway (cada servicio tiene su pestaña "Deployments" -> "View Logs").
