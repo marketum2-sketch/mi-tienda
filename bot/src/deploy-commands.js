@@ -50,11 +50,11 @@ const commands = [
   new SlashCommandBuilder()
     .setName("vouch")
     .setDescription("Leave a public review about your purchase")
-    .addUserOption((opt) => opt.setName("vendedor").setDescription("Who helped you").setRequired(true))
-    .addStringOption((opt) => opt.setName("producto").setDescription("What you bought").setRequired(true))
+    .addUserOption((opt) => opt.setName("seller").setDescription("Who helped you").setRequired(true))
+    .addStringOption((opt) => opt.setName("product").setDescription("What you bought").setRequired(true))
     .addIntegerOption((opt) =>
       opt
-        .setName("calificacion")
+        .setName("rating")
         .setDescription("1 to 5")
         .setRequired(true)
         .addChoices(
@@ -65,7 +65,7 @@ const commands = [
           { name: "⭐⭐⭐⭐⭐", value: 5 }
         )
     )
-    .addStringOption((opt) => opt.setName("comentario").setDescription("Tell us how it went").setRequired(false)),
+    .addStringOption((opt) => opt.setName("comment").setDescription("Tell us how it went").setRequired(false)),
 
   new SlashCommandBuilder().setName("ayuda").setDescription("Lists all bot commands and what they do"),
 
@@ -100,7 +100,7 @@ const commands = [
     .setName("timer")
     .setDescription("Starts a timer and notifies you when it's done")
     .addIntegerOption((opt) =>
-      opt.setName("minutos").setDescription("Minutes (10 by default)").setRequired(false)
+      opt.setName("minutes").setDescription("Minutes (10 by default)").setRequired(false)
     ),
 
   new SlashCommandBuilder()

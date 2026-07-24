@@ -425,7 +425,7 @@ client.on("interactionCreate", async (interaction) => {
 
   // ---------- /timer ----------
   if (interaction.commandName === "timer") {
-    const minutos = interaction.options.getInteger("minutos") ?? 10;
+    const minutos = interaction.options.getInteger("minutes") ?? 10;
 
     const startEmbed = new EmbedBuilder()
       .setDescription(`⏱️ Timer started: **${minutos} minute${minutos === 1 ? "" : "s"}**`)
@@ -743,10 +743,10 @@ client.on("interactionCreate", async (interaction) => {
 
   // ---------- /vouch ----------
   if (interaction.commandName === "vouch") {
-    const vendedor = interaction.options.getUser("vendedor");
-    const producto = interaction.options.getString("producto");
-    const calificacion = interaction.options.getInteger("calificacion");
-    const comentario = interaction.options.getString("comentario");
+    const vendedor = interaction.options.getUser("seller");
+    const producto = interaction.options.getString("product");
+    const calificacion = interaction.options.getInteger("rating");
+    const comentario = interaction.options.getString("comment");
 
     const targetChannel = PUBLIC_REVIEWS_CHANNEL_ID
       ? await client.channels.fetch(PUBLIC_REVIEWS_CHANNEL_ID).catch(() => null)
