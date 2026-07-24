@@ -585,35 +585,42 @@ client.on("interactionCreate", async (interaction) => {
 
   // ---------- /ayuda ----------
   if (interaction.commandName === "ayuda") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const registered = await interaction.guild.commands.fetch();
+    const groups = { public: [], staff: [], owner: [] };
+
+    for (const cmd of registered.values()) {
+      let bucket = "public";
+      if (cmd.defaultMemberPermissions) {
+        bucket = cmd.defaultMemberPermissions.has(PermissionFlagsBits.Administrator) ? "owner" : "staff";
+      }
+      groups[bucket].push(cmd);
+    }
+    for (const list of Object.values(groups)) list.sort((a, b) => a.name.localeCompare(b.name));
+
+    const fields = [];
+    if (groups.public.length) {
+      fields.push({ name: "👤 Para cualquiera", value: "\u200B" });
+      for (const c of groups.public) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
+    }
+    if (groups.staff.length) {
+      fields.push({ name: "🛠️ Solo staff", value: "\u200B" });
+      for (const c of groups.staff) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
+    }
+    if (groups.owner.length) {
+      fields.push({ name: "👑 Solo owner", value: "\u200B" });
+      for (const c of groups.owner) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
+    }
+
     const embed = new EmbedBuilder()
       .setAuthor({ name: "ZoneSell | Bot" })
       .setTitle("📖 Comandos disponibles")
-      .addFields(
-        { name: "👤 Para cualquiera", value: "\u200B" },
-        { name: "/ticket", value: "Abre un ticket de soporte privado directo (sin pasar por el panel)." },
-        { name: "/vouch vendedor producto calificacion [comentario]", value: "Deja tu resena publica despues de comprar." },
-        { name: "/invitar", value: "Genera tu link de invitacion personal para traer gente al servidor." },
-        { name: "/ranking-invitados", value: "Muestra quien ha invitado mas gente, para repartir recompensas." },
-        { name: "/timer [minutos]", value: "Inicia un contador (10 min por defecto) y te avisa en el canal cuando termina." },
-        { name: "\u200B", value: "\u200B" },
-        { name: "👑 Solo owner", value: "\u200B" },
-        { name: "/setup-servidor", value: "Crea toda la estructura de categorias y canales de una sola vez." },
-        { name: "/eliminar-todo confirmar", value: "⚠️ Borra TODOS los canales. Pide escribir `ELIMINAR TODO` para confirmar. Irreversible." },
-        { name: "\u200B", value: "\u200B" },
-        { name: "🛠️ Solo staff", value: "\u200B" },
-        { name: "/panel", value: "Publica el panel fijo con el menu de motivos para abrir tickets. Se usa una sola vez por canal." },
-        { name: "/transferir usuario", value: "Pasa el ticket actual a otra persona (le da acceso al canal)." },
-        { name: "/reclamar", value: "Usalo DENTRO de un ticket para avisar que tú lo estas atendiendo." },
-        { name: "/cerrar-todos [horas]", value: "Cierra de una todos los tickets sin actividad hace mas de X horas (48 por defecto)." },
-        { name: "/notificar usuario [mensaje]", value: "Le manda un DM prolijo a alguien avisando que le respondiste." },
-        { name: "/factura id", value: "Busca una compra por su ID de factura completo: estado, metodo de pago, monto, fecha, comprador y producto." },
-        { name: "/pedido email", value: "Busca en Shoppex las compras de ese email y muestra su estado." },
-        { name: "/stats", value: "Ingresos totales, pedidos completados y top productos, sacado de Shoppex." }
-      )
+      .addFields(fields)
       .setColor(0x3355ff)
-      .setFooter({ text: "ZoneSell • /ayuda para ver esto de nuevo" });
+      .setFooter({ text: "ZoneSell • Generado automaticamente, siempre al dia" });
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.editReply({ embeds: [embed] });
   }
 
   // ---------- /vouch ----------
