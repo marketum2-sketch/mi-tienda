@@ -188,22 +188,6 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
 }
 
 client.on("interactionCreate", async (interaction) => {
-  if (interaction.isButton() && interaction.customId === "verify_me") {
-    const verifiedRole = interaction.guild.roles.cache.find((r) => r.name === "✅ Verified");
-    if (!verifiedRole) {
-      return interaction.reply({
-        content: "Could not find the verified role. Ask staff to run /setup-servidor again or create it manually.",
-        ephemeral: true,
-      });
-    }
-    if (interaction.member.roles.cache.has(verifiedRole.id)) {
-      return interaction.reply({ content: "You were already verified.", ephemeral: true });
-    }
-    await interaction.member.roles.add(verifiedRole).catch(() => {});
-    return interaction.reply({ content: "✅ Done, you now have access to the rest of the server.", ephemeral: true });
-  }
-
-  // ---------- Close ticket (button) ----------
   if (interaction.isButton() && interaction.customId === "close_ticket") {
     await interaction.reply("Closing this ticket in 5 seconds...");
     setTimeout(() => closeTicket(interaction.channel, interaction.user.tag), 5000);
@@ -523,7 +507,7 @@ client.on("interactionCreate", async (interaction) => {
 
     const guild = interaction.guild;
 
-    // ---- Paso 1: crear los roles que falten ----
+    // ---- Roles ----
     const roleIds = {};
     for (const roleDef of SERVER_ROLES) {
       const existing = guild.roles.cache.find((r) => r.name === roleDef.name);
@@ -540,73 +524,30 @@ client.on("interactionCreate", async (interaction) => {
       roleIds[roleDef.key] = role.id;
     }
 
-    const effectiveStaffRoleId = STAFF_ROLE_ID || roleIds.staff;
-    const verifiedRoleId = roleIds.verified;
-
-    // ---- Paso 2: crear categorias y canales ----
+    // ---- Categorias y canales, sin tocar permisos ----
     let created = 0;
     let ticketCategoryId = null;
-    let verifyChannelId = null;
-    const total =
-      SERVER_STRUCTURE.reduce((sum, cat) => sum + 1 + cat.channels.length, 0) +
-      SERVER_ROLES.length;
-    created += SERVER_ROLES.length;
 
     for (const cat of SERVER_STRUCTURE) {
-      let overwrites = [];
-      if (cat.staffOnly) {
-        overwrites = [
-          { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-          { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.ViewChannel] },
-          ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
-        ];
-      } else if (!cat.public) {
-        overwrites = [
-          { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-          { id: verifiedRoleId, allow: [PermissionFlagsBits.ViewChannel] },
-          { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.ViewChannel] },
-          ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
-        ];
-      }
-
       let category = guild.channels.cache.find(
         (c) => c.type === ChannelType.GuildCategory && c.name === cat.category
       );
-      if (category) {
-        await category.permissionOverwrites.set(overwrites).catch(() => {});
-      } else {
-        category = await guild.channels.create({
-          name: cat.category,
-          type: ChannelType.GuildCategory,
-          permissionOverwrites: overwrites,
-        });
+      if (!category) {
+        category = await guild.channels.create({ name: cat.category, type: ChannelType.GuildCategory });
         created++;
       }
 
-      if (cat.ticketCategory) {
-        ticketCategoryId = category.id;
-      }
+      if (cat.ticketCategory) ticketCategoryId = category.id;
 
       for (const ch of cat.channels) {
-        const channelOverwrites = ch.readOnly
-          ? [
-              { id: guild.roles.everyone, deny: [PermissionFlagsBits.SendMessages] },
-              { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.SendMessages] },
-              ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.SendMessages] }] : []),
-            ]
-          : [];
-
         let channel = guild.channels.cache.find((c) => c.parentId === category.id && c.name === ch.name);
         const isNew = !channel;
 
-        if (channel) {
-          await channel.permissionOverwrites.set(channelOverwrites).catch(() => {});
-        } else {
+        if (!channel) {
           channel = await guild.channels.create({
             name: ch.name,
             type: ch.type === "voice" ? ChannelType.GuildVoice : ChannelType.GuildText,
             parent: category.id,
-            permissionOverwrites: channelOverwrites,
           });
           created++;
         }
@@ -614,24 +555,6 @@ client.on("interactionCreate", async (interaction) => {
         if (isNew && ch.message) {
           const msgEmbed = new EmbedBuilder().setDescription(ch.message).setColor(0x3355ff);
           await channel.send({ embeds: [msgEmbed] }).catch(() => {});
-        }
-
-        if (isNew && ch.isVerifyChannel) {
-          verifyChannelId = channel.id;
-          const verifyEmbed = new EmbedBuilder()
-            .setTitle("✅ Verificate para entrar")
-            .setDescription("Toca el boton de abajo para verificarte y desbloquear el resto del servidor.")
-            .setColor(0x2ecc71);
-          const verifyRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("verify_me").setLabel("Verificarme").setStyle(ButtonStyle.Success)
-          );
-          await channel.send({ embeds: [verifyEmbed], components: [verifyRow] }).catch(() => {});
-        } else if (ch.isVerifyChannel) {
-          verifyChannelId = channel.id;
-        }
-
-        if (created % 10 === 0) {
-          await interaction.editReply(`Creando estructura del servidor... ${created}/${total}`);
         }
       }
     }
@@ -642,9 +565,8 @@ client.on("interactionCreate", async (interaction) => {
 
     const doneEmbed = new EmbedBuilder()
       .setDescription(
-        `✅ Listo. Se crearon **${created}** elementos (roles + categorias + canales).\n\n` +
-          `Roles: <@&${roleIds.founder}> <@&${roleIds.staff}> <@&${roleIds.verified}> <@&${roleIds.customer}>\n` +
-          `El canal de verificacion quedo en <#${verifyChannelId}>.` +
+        `✅ Listo. Se crearon **${created}** elementos nuevos (categorias + canales), sin tocar ningun permiso.\n\n` +
+          `Roles creados/reusados: <@&${roleIds.founder}> <@&${roleIds.staff}> <@&${roleIds.verified}> <@&${roleIds.customer}> <@&${roleIds.moderator}> <@&${roleIds.support}> <@&${roleIds.bots}> <@&${roleIds.partner}>` +
           (warnings.length
             ? `\n\n⚠️ **Importante:** actualiza en Railway (servicio bot, Variables):\n${warnings.join("\n")}`
             : "")

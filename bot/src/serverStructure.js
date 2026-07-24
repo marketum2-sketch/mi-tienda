@@ -1,34 +1,30 @@
-// Full structure created by /setup-server.
+// Full structure created by /setup-servidor.
 // type: "text" | "voice"
-// readOnly: true -> regular members can view but not write (staff only)
 // message: if present, gets posted automatically when the channel is created
-// public: true on a CATEGORY -> visible without needing to be verified
-// isVerifyChannel: true -> the verification button gets posted here
+// No permissions are touched by this file at all. Every channel is created
+// with default (open) permissions. Configure any restrictions manually
+// in Discord afterwards if you want them.
 export const SERVER_STRUCTURE = [
   {
     category: "👋 WELCOME",
-    public: true,
     channels: [
       {
         name: "rules",
         type: "text",
-        readOnly: true,
         message:
           "**📜 Server rules**\n\n1. Respect everyone, no insults or discrimination.\n2. No spam or advertising other servers without permission.\n3. Purchases and support go through a ticket (`/ticket` or the panel), not staff DMs.\n4. Staff has the final word in case of doubt.\n\n*(Edit this message with your real rules whenever you want.)*",
       },
-      { name: "verification", type: "text", readOnly: true, isVerifyChannel: true },
     ],
   },
   {
     category: "📢 INFO",
     channels: [
-      { name: "announcements", type: "text", readOnly: true },
-      { name: "updates", type: "text", readOnly: true },
-      { name: "roles", type: "text", readOnly: true, message: "🎭 Self-assignable roles go here (notifications, games, etc.). Set it up with your favorite reaction-roles system." },
+      { name: "announcements", type: "text" },
+      { name: "updates", type: "text" },
+      { name: "roles", type: "text", message: "🎭 Self-assignable roles go here (notifications, games, etc.). Set it up with your favorite reaction-roles system." },
       {
         name: "faq",
         type: "text",
-        readOnly: true,
         message: "**❓ Frequently asked questions**\n\n*(Fill in with your real questions. Example:)*\n\n**How fast is delivery?** Instant, as soon as payment is confirmed.\n**What payment methods do you accept?** Check #payment-methods.",
       },
     ],
@@ -36,26 +32,25 @@ export const SERVER_STRUCTURE = [
   {
     category: "🛍️ STORE",
     channels: [
-      { name: "catalog", type: "text", readOnly: true, message: "🛒 Check out the full catalog on the store website, or use `/vouch` once you've bought something." },
-      { name: "new-products", type: "text", readOnly: true },
-      { name: "deals", type: "text", readOnly: true },
+      { name: "catalog", type: "text", message: "🛒 Check out the full catalog on the store website, or use `/vouch` once you've bought something." },
+      { name: "new-products", type: "text" },
+      { name: "deals", type: "text" },
       {
         name: "how-to-buy",
         type: "text",
-        readOnly: true,
         message:
           "**🛍️ How to buy**\n\n1. Browse the catalog and pick your product.\n2. Complete the payment.\n3. Get your product instantly.\n4. If something goes wrong, open a ticket in #ticket-panel.",
       },
-      { name: "payment-methods", type: "text", readOnly: true, message: "**💳 Accepted payment methods**\n\n• PayPal\n\n*(Update this list if you add more methods.)*" },
-      { name: "warranty-and-refunds", type: "text", readOnly: true, message: "**🛡️ Warranty and refunds**\n\n*(Fill in with your real policy: timeframes, what's covered, how to request one.)*" },
-      { name: "order-status", type: "text", readOnly: true, message: "📦 To check your order status, open a ticket and ask staff to use `/order` or `/invoice`." },
+      { name: "payment-methods", type: "text", message: "**💳 Accepted payment methods**\n\n• PayPal\n\n*(Update this list if you add more methods.)*" },
+      { name: "warranty-and-refunds", type: "text", message: "**🛡️ Warranty and refunds**\n\n*(Fill in with your real policy: timeframes, what's covered, how to request one.)*" },
+      { name: "order-status", type: "text", message: "📦 To check your order status, open a ticket and ask staff to use `/order` or `/invoice`." },
       { name: "reviews", type: "text" },
       { name: "store-questions", type: "text" },
     ],
   },
   {
     category: "📦 PRODUCTS",
-    channels: Array.from({ length: 30 }, (_, i) => ({ name: `product-${i + 1}`, type: "text", readOnly: true })),
+    channels: Array.from({ length: 30 }, (_, i) => ({ name: `product-${i + 1}`, type: "text" })),
   },
   {
     category: "🎫 TICKETS",
@@ -65,15 +60,15 @@ export const SERVER_STRUCTURE = [
   {
     category: "🎫 SUPPORT",
     channels: [
-      { name: "ticket-panel", type: "text", readOnly: true },
-      { name: "service-status", type: "text", readOnly: true },
+      { name: "ticket-panel", type: "text" },
+      { name: "service-status", type: "text" },
     ],
   },
   {
     category: "🎮 COMMUNITY",
     channels: [
       { name: "general-chat", type: "text" },
-      { name: "free-tips", type: "text", readOnly: true },
+      { name: "free-tips", type: "text" },
       { name: "results", type: "text" },
       { name: "clips", type: "text" },
       { name: "introduce-yourself", type: "text" },
@@ -83,13 +78,12 @@ export const SERVER_STRUCTURE = [
   {
     category: "🏆 EVENTS",
     channels: [
-      { name: "events", type: "text", readOnly: true },
-      { name: "tournaments", type: "text", readOnly: true },
+      { name: "events", type: "text" },
+      { name: "tournaments", type: "text" },
     ],
   },
   {
     category: "🔒 STAFF",
-    staffOnly: true,
     channels: [
       { name: "staff-chat", type: "text" },
       { name: "ticket-logs", type: "text" },
@@ -101,7 +95,6 @@ export const SERVER_STRUCTURE = [
   },
   {
     category: "🚫 MODERATION",
-    staffOnly: true,
     channels: [
       { name: "warn-log", type: "text" },
       { name: "ban-log", type: "text" },
@@ -118,7 +111,6 @@ export const SERVER_STRUCTURE = [
   },
   {
     category: "🔒 STAFF VOICE",
-    staffOnly: true,
     channels: [
       { name: "Staff", type: "voice" },
       { name: "Meetings", type: "voice" },
@@ -126,15 +118,10 @@ export const SERVER_STRUCTURE = [
   },
 ];
 
-// Roles created by /setup-server if they don't already exist (matched by name).
+// Roles created by /setup-servidor if they don't already exist (matched by name).
+// These are created with no channel permissions wired up automatically.
 export const SERVER_ROLES = [
-  {
-    key: "founder",
-    name: "👑 Founder",
-    color: 0xffd700,
-    hoist: true,
-    permissions: ["Administrator"],
-  },
+  { key: "founder", name: "👑 Founder", color: 0xffd700, hoist: true, permissions: ["Administrator"] },
   {
     key: "staff",
     name: "🛠️ Staff",
@@ -153,20 +140,8 @@ export const SERVER_ROLES = [
       "ViewAuditLog",
     ],
   },
-  {
-    key: "verified",
-    name: "✅ Verified",
-    color: 0x2ecc71,
-    hoist: false,
-    permissions: [],
-  },
-  {
-    key: "customer",
-    name: "🛍️ Customer",
-    color: 0xffc53d,
-    hoist: true,
-    permissions: [],
-  },
+  { key: "verified", name: "✅ Verified", color: 0x2ecc71, hoist: false, permissions: [] },
+  { key: "customer", name: "🛍️ Customer", color: 0xffc53d, hoist: true, permissions: [] },
   {
     key: "moderator",
     name: "🛡️ Moderator",
@@ -174,25 +149,7 @@ export const SERVER_ROLES = [
     hoist: true,
     permissions: ["KickMembers", "BanMembers", "ManageMessages", "MuteMembers", "DeafenMembers", "ModerateMembers", "ManageNicknames"],
   },
-  {
-    key: "support",
-    name: "🎫 Support",
-    color: 0x2ecc71,
-    hoist: true,
-    permissions: ["ManageMessages"],
-  },
-  {
-    key: "bots",
-    name: "🤖 Bots",
-    color: 0x99aab5,
-    hoist: true,
-    permissions: [],
-  },
-  {
-    key: "partner",
-    name: "🤝 Partners",
-    color: 0x1abc9c,
-    hoist: true,
-    permissions: [],
-  },
+  { key: "support", name: "🎫 Support", color: 0x2ecc71, hoist: true, permissions: ["ManageMessages"] },
+  { key: "bots", name: "🤖 Bots", color: 0x99aab5, hoist: true, permissions: [] },
+  { key: "partner", name: "🤝 Partners", color: 0x1abc9c, hoist: true, permissions: [] },
 ];
