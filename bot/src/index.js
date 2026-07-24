@@ -11,7 +11,7 @@ import {
   StringSelectMenuBuilder,
 } from "discord.js";
 import { listOrdersByEmail, listOrders, getOrder } from "./shoppex.js";
-import { SERVER_STRUCTURE } from "./serverStructure.js";
+import { SERVER_STRUCTURE, SERVER_ROLES } from "./serverStructure.js";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
@@ -25,7 +25,8 @@ const PUBLIC_REVIEWS_CHANNEL_ID = process.env.PUBLIC_REVIEWS_CHANNEL_ID;
 const INACTIVITY_HOURS = parseFloat(process.env.INACTIVITY_HOURS || "48");
 
 function isStaff(interaction) {
-  return !STAFF_ROLE_ID || interaction.member.roles.cache.has(STAFF_ROLE_ID);
+  if (STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID)) return true;
+  return interaction.member.roles.cache.some((r) => ["🛠️ Staff", "🎫 Soporte"].includes(r.name));
 }
 
 const reasonLabels = {
@@ -122,6 +123,10 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
     return;
   }
 
+  const supportRoleIds = guild.roles.cache
+    .filter((r) => ["🛠️ Staff", "🎫 Soporte"].includes(r.name))
+    .map((r) => r.id);
+
   const channel = await guild.channels.create({
     name: channelName,
     type: ChannelType.GuildText,
@@ -133,6 +138,7 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
       ...(STAFF_ROLE_ID
         ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
         : []),
+      ...supportRoleIds.map((id) => ({ id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] })),
       ...(OWNER_ID
         ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }]
         : []),
@@ -182,6 +188,21 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
 }
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton() && interaction.customId === "verify_me") {
+    const verifiedRole = interaction.guild.roles.cache.find((r) => r.name === "✅ Verificado");
+    if (!verifiedRole) {
+      return interaction.reply({
+        content: "No encontre el rol de verificado. Corre /setup-servidor de nuevo o crealo a mano.",
+        ephemeral: true,
+      });
+    }
+    if (interaction.member.roles.cache.has(verifiedRole.id)) {
+      return interaction.reply({ content: "Ya estabas verificado.", ephemeral: true });
+    }
+    await interaction.member.roles.add(verifiedRole).catch(() => {});
+    return interaction.reply({ content: "✅ Listo, ya tienes acceso al resto del servidor.", ephemeral: true });
+  }
+
   // ---------- Cerrar ticket (boton) ----------
   if (interaction.isButton() && interaction.customId === "close_ticket") {
     await interaction.reply("Cerrando ticket en 5 segundos...");
@@ -469,20 +490,52 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
 
     const guild = interaction.guild;
+
+    // ---- Paso 1: crear los roles que falten ----
+    const roleIds = {};
+    for (const roleDef of SERVER_ROLES) {
+      const existing = guild.roles.cache.find((r) => r.name === roleDef.name);
+      if (existing) {
+        roleIds[roleDef.key] = existing.id;
+        continue;
+      }
+      const role = await guild.roles.create({
+        name: roleDef.name,
+        color: roleDef.color,
+        hoist: roleDef.hoist,
+        permissions: roleDef.permissions.map((p) => PermissionFlagsBits[p]),
+      });
+      roleIds[roleDef.key] = role.id;
+    }
+
+    const effectiveStaffRoleId = STAFF_ROLE_ID || roleIds.staff;
+    const verifiedRoleId = roleIds.verified;
+
+    // ---- Paso 2: crear categorias y canales ----
     let created = 0;
     let ticketCategoryId = null;
-    const total = SERVER_STRUCTURE.reduce((sum, cat) => sum + 1 + cat.channels.length, 0);
+    let verifyChannelId = null;
+    const total =
+      SERVER_STRUCTURE.reduce((sum, cat) => sum + 1 + cat.channels.length, 0) +
+      SERVER_ROLES.length;
+    created += SERVER_ROLES.length;
 
     for (const cat of SERVER_STRUCTURE) {
-      const overwrites = cat.staffOnly
-        ? [
-            { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-            ...(STAFF_ROLE_ID
-              ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel] }]
-              : []),
-            ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
-          ]
-        : [];
+      let overwrites = [];
+      if (cat.staffOnly) {
+        overwrites = [
+          { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.ViewChannel] },
+          ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
+        ];
+      } else if (!cat.public) {
+        overwrites = [
+          { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: verifiedRoleId, allow: [PermissionFlagsBits.ViewChannel] },
+          { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.ViewChannel] },
+          ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel] }] : []),
+        ];
+      }
 
       const category = await guild.channels.create({
         name: cat.category,
@@ -496,23 +549,56 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       for (const ch of cat.channels) {
-        await guild.channels.create({
+        const channelOverwrites = ch.readOnly
+          ? [
+              { id: guild.roles.everyone, deny: [PermissionFlagsBits.SendMessages] },
+              { id: effectiveStaffRoleId, allow: [PermissionFlagsBits.SendMessages] },
+              ...(OWNER_ID ? [{ id: OWNER_ID, allow: [PermissionFlagsBits.SendMessages] }] : []),
+            ]
+          : [];
+
+        const channel = await guild.channels.create({
           name: ch.name,
           type: ch.type === "voice" ? ChannelType.GuildVoice : ChannelType.GuildText,
           parent: category.id,
+          permissionOverwrites: channelOverwrites,
         });
         created++;
+
+        if (ch.message) {
+          const msgEmbed = new EmbedBuilder().setDescription(ch.message).setColor(0x3355ff);
+          await channel.send({ embeds: [msgEmbed] }).catch(() => {});
+        }
+
+        if (ch.isVerifyChannel) {
+          verifyChannelId = channel.id;
+          const verifyEmbed = new EmbedBuilder()
+            .setTitle("✅ Verificate para entrar")
+            .setDescription("Toca el boton de abajo para verificarte y desbloquear el resto del servidor.")
+            .setColor(0x2ecc71);
+          const verifyRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("verify_me").setLabel("Verificarme").setStyle(ButtonStyle.Success)
+          );
+          await channel.send({ embeds: [verifyEmbed], components: [verifyRow] }).catch(() => {});
+        }
+
         if (created % 10 === 0) {
           await interaction.editReply(`Creando estructura del servidor... ${created}/${total}`);
         }
       }
     }
 
+    const warnings = [];
+    if (ticketCategoryId) warnings.push(`\`TICKET_CATEGORY_ID=${ticketCategoryId}\``);
+    if (!STAFF_ROLE_ID) warnings.push(`\`STAFF_ROLE_ID=${roleIds.staff}\` (recien creado, no lo teniamos)`);
+
     const doneEmbed = new EmbedBuilder()
       .setDescription(
-        `✅ Listo. Se crearon **${created}** elementos (categorias + canales).` +
-          (ticketCategoryId
-            ? `\n\n⚠️ **Importante:** actualiza en Railway (servicio bot, Variables) esto:\n\`TICKET_CATEGORY_ID=${ticketCategoryId}\``
+        `✅ Listo. Se crearon **${created}** elementos (roles + categorias + canales).\n\n` +
+          `Roles: <@&${roleIds.founder}> <@&${roleIds.staff}> <@&${roleIds.verified}> <@&${roleIds.customer}>\n` +
+          `El canal de verificacion quedo en <#${verifyChannelId}>.` +
+          (warnings.length
+            ? `\n\n⚠️ **Importante:** actualiza en Railway (servicio bot, Variables):\n${warnings.join("\n")}`
             : "")
       )
       .setColor(0x2ecc71);
