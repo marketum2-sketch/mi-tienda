@@ -1,61 +1,61 @@
-// Estructura completa que crea /setup-servidor.
+// Full structure created by /setup-server.
 // type: "text" | "voice"
-// readOnly: true -> los miembros normales pueden ver pero no escribir (solo staff)
-// message: si esta presente, se publica automaticamente al crear el canal
-// public: true en una CATEGORIA -> visible sin necesidad de estar verificado
-// isVerifyChannel: true -> aqui se publica el boton de verificacion
+// readOnly: true -> regular members can view but not write (staff only)
+// message: if present, gets posted automatically when the channel is created
+// public: true on a CATEGORY -> visible without needing to be verified
+// isVerifyChannel: true -> the verification button gets posted here
 export const SERVER_STRUCTURE = [
   {
-    category: "👋 BIENVENIDA",
+    category: "👋 WELCOME",
     public: true,
     channels: [
       {
-        name: "reglas",
+        name: "rules",
         type: "text",
         readOnly: true,
         message:
-          "**📜 Reglas del servidor**\n\n1. Respeto ante todo, cero insultos ni discriminacion.\n2. Nada de spam ni publicidad de otros servidores sin permiso.\n3. Las compras y consultas de soporte van por ticket (`/ticket` o el panel), no por DM al staff.\n4. El staff tiene la ultima palabra en caso de dudas.\n\n*(Edita este mensaje con tus reglas reales cuando quieras.)*",
+          "**📜 Server rules**\n\n1. Respect everyone, no insults or discrimination.\n2. No spam or advertising other servers without permission.\n3. Purchases and support go through a ticket (`/ticket` or the panel), not staff DMs.\n4. Staff has the final word in case of doubt.\n\n*(Edit this message with your real rules whenever you want.)*",
       },
-      { name: "verificacion", type: "text", readOnly: true, isVerifyChannel: true },
+      { name: "verification", type: "text", readOnly: true, isVerifyChannel: true },
     ],
   },
   {
     category: "📢 INFO",
     channels: [
-      { name: "anuncios", type: "text", readOnly: true },
-      { name: "novedades", type: "text", readOnly: true },
-      { name: "roles", type: "text", readOnly: true, message: "🎭 Aqui van los roles auto-asignables (notificaciones, juegos, etc.). Configuralo con tu sistema de reaction roles favorito." },
+      { name: "announcements", type: "text", readOnly: true },
+      { name: "updates", type: "text", readOnly: true },
+      { name: "roles", type: "text", readOnly: true, message: "🎭 Self-assignable roles go here (notifications, games, etc.). Set it up with your favorite reaction-roles system." },
       {
         name: "faq",
         type: "text",
         readOnly: true,
-        message: "**❓ Preguntas frecuentes**\n\n*(Completa con tus preguntas reales. Ejemplo:)*\n\n**¿Cuanto tarda la entrega?** Es instantanea apenas se confirma el pago.\n**¿Que metodos de pago aceptan?** Mira #metodos-de-pago.",
+        message: "**❓ Frequently asked questions**\n\n*(Fill in with your real questions. Example:)*\n\n**How fast is delivery?** Instant, as soon as payment is confirmed.\n**What payment methods do you accept?** Check #payment-methods.",
       },
     ],
   },
   {
-    category: "🛍️ TIENDA",
+    category: "🛍️ STORE",
     channels: [
-      { name: "catalogo", type: "text", readOnly: true, message: "🛒 Mira el catalogo completo en la web de la tienda, o usa `/vouch` una vez que compres." },
-      { name: "productos-nuevos", type: "text", readOnly: true },
-      { name: "ofertas", type: "text", readOnly: true },
+      { name: "catalog", type: "text", readOnly: true, message: "🛒 Check out the full catalog on the store website, or use `/vouch` once you've bought something." },
+      { name: "new-products", type: "text", readOnly: true },
+      { name: "deals", type: "text", readOnly: true },
       {
-        name: "como-comprar",
+        name: "how-to-buy",
         type: "text",
         readOnly: true,
         message:
-          "**🛍️ Como comprar**\n\n1. Entra al catalogo y elegi tu producto.\n2. Completa el pago.\n3. Recibis tu producto al instante.\n4. Si algo falla, abri un ticket en #panel-tickets.",
+          "**🛍️ How to buy**\n\n1. Browse the catalog and pick your product.\n2. Complete the payment.\n3. Get your product instantly.\n4. If something goes wrong, open a ticket in #ticket-panel.",
       },
-      { name: "metodos-de-pago", type: "text", readOnly: true, message: "**💳 Metodos de pago aceptados**\n\n• PayPal\n\n*(Actualiza esta lista si sumas mas metodos.)*" },
-      { name: "garantias-y-devoluciones", type: "text", readOnly: true, message: "**🛡️ Garantias y devoluciones**\n\n*(Completa con tu politica real: plazos, que cubre, como se pide.)*" },
-      { name: "estado-de-pedidos", type: "text", readOnly: true, message: "📦 Para consultar el estado de tu pedido, abri un ticket y pedile al staff que use `/pedido` o `/factura`." },
-      { name: "reseñas", type: "text" },
-      { name: "preguntas-tienda", type: "text" },
+      { name: "payment-methods", type: "text", readOnly: true, message: "**💳 Accepted payment methods**\n\n• PayPal\n\n*(Update this list if you add more methods.)*" },
+      { name: "warranty-and-refunds", type: "text", readOnly: true, message: "**🛡️ Warranty and refunds**\n\n*(Fill in with your real policy: timeframes, what's covered, how to request one.)*" },
+      { name: "order-status", type: "text", readOnly: true, message: "📦 To check your order status, open a ticket and ask staff to use `/order` or `/invoice`." },
+      { name: "reviews", type: "text" },
+      { name: "store-questions", type: "text" },
     ],
   },
   {
-    category: "📦 PRODUCTOS",
-    channels: Array.from({ length: 30 }, (_, i) => ({ name: `producto-${i + 1}`, type: "text", readOnly: true })),
+    category: "📦 PRODUCTS",
+    channels: Array.from({ length: 30 }, (_, i) => ({ name: `product-${i + 1}`, type: "text", readOnly: true })),
   },
   {
     category: "🎫 TICKETS",
@@ -63,28 +63,28 @@ export const SERVER_STRUCTURE = [
     channels: [],
   },
   {
-    category: "🎫 SOPORTE",
+    category: "🎫 SUPPORT",
     channels: [
-      { name: "panel-tickets", type: "text", readOnly: true },
-      { name: "estado-del-servicio", type: "text", readOnly: true },
+      { name: "ticket-panel", type: "text", readOnly: true },
+      { name: "service-status", type: "text", readOnly: true },
     ],
   },
   {
-    category: "🎮 COMUNIDAD",
+    category: "🎮 COMMUNITY",
     channels: [
-      { name: "chat-general", type: "text" },
-      { name: "tips-gratis", type: "text", readOnly: true },
-      { name: "resultados", type: "text" },
+      { name: "general-chat", type: "text" },
+      { name: "free-tips", type: "text", readOnly: true },
+      { name: "results", type: "text" },
       { name: "clips", type: "text" },
-      { name: "presentate", type: "text" },
+      { name: "introduce-yourself", type: "text" },
       { name: "memes", type: "text" },
     ],
   },
   {
-    category: "🏆 EVENTOS",
+    category: "🏆 EVENTS",
     channels: [
-      { name: "eventos", type: "text", readOnly: true },
-      { name: "torneos", type: "text", readOnly: true },
+      { name: "events", type: "text", readOnly: true },
+      { name: "tournaments", type: "text", readOnly: true },
     ],
   },
   {
@@ -92,45 +92,45 @@ export const SERVER_STRUCTURE = [
     staffOnly: true,
     channels: [
       { name: "staff-chat", type: "text" },
-      { name: "logs-tickets", type: "text" },
-      { name: "logs-ventas", type: "text" },
-      { name: "tareas-pendientes", type: "text" },
-      { name: "anuncios-staff", type: "text" },
-      { name: "feedback-interno", type: "text" },
+      { name: "ticket-logs", type: "text" },
+      { name: "sales-logs", type: "text" },
+      { name: "pending-tasks", type: "text" },
+      { name: "staff-announcements", type: "text" },
+      { name: "internal-feedback", type: "text" },
     ],
   },
   {
-    category: "🚫 MODERACION",
+    category: "🚫 MODERATION",
     staffOnly: true,
     channels: [
-      { name: "registro-warns", type: "text" },
-      { name: "registro-baneos", type: "text" },
+      { name: "warn-log", type: "text" },
+      { name: "ban-log", type: "text" },
     ],
   },
   {
-    category: "🎤 VOZ",
+    category: "🎤 VOICE",
     channels: [
       { name: "General", type: "voice" },
-      { name: "Estrategia en vivo", type: "voice" },
+      { name: "Strategy Talk", type: "voice" },
       { name: "Streaming", type: "voice" },
       { name: "AFK", type: "voice" },
     ],
   },
   {
-    category: "🔒 VOZ STAFF",
+    category: "🔒 STAFF VOICE",
     staffOnly: true,
     channels: [
       { name: "Staff", type: "voice" },
-      { name: "Reuniones", type: "voice" },
+      { name: "Meetings", type: "voice" },
     ],
   },
 ];
 
-// Roles que crea /setup-servidor si todavia no existen (por nombre).
+// Roles created by /setup-server if they don't already exist (matched by name).
 export const SERVER_ROLES = [
   {
     key: "founder",
-    name: "👑 Fundador",
+    name: "👑 Founder",
     color: 0xffd700,
     hoist: true,
     permissions: ["Administrator"],
@@ -155,28 +155,28 @@ export const SERVER_ROLES = [
   },
   {
     key: "verified",
-    name: "✅ Verificado",
+    name: "✅ Verified",
     color: 0x2ecc71,
     hoist: false,
     permissions: [],
   },
   {
     key: "customer",
-    name: "🛍️ Cliente",
+    name: "🛍️ Customer",
     color: 0xffc53d,
     hoist: true,
     permissions: [],
   },
   {
     key: "moderator",
-    name: "🛡️ Moderador",
+    name: "🛡️ Moderator",
     color: 0x5865f2,
     hoist: true,
     permissions: ["KickMembers", "BanMembers", "ManageMessages", "MuteMembers", "DeafenMembers", "ModerateMembers", "ManageNicknames"],
   },
   {
     key: "support",
-    name: "🎫 Soporte",
+    name: "🎫 Support",
     color: 0x2ecc71,
     hoist: true,
     permissions: ["ManageMessages"],
@@ -190,7 +190,7 @@ export const SERVER_ROLES = [
   },
   {
     key: "partner",
-    name: "🤝 Alianzas",
+    name: "🤝 Partners",
     color: 0x1abc9c,
     hoist: true,
     permissions: [],

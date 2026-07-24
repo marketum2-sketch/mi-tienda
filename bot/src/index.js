@@ -26,16 +26,16 @@ const INACTIVITY_HOURS = parseFloat(process.env.INACTIVITY_HOURS || "48");
 
 function isStaff(interaction) {
   if (STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID)) return true;
-  return interaction.member.roles.cache.some((r) => ["🛠️ Staff", "🎫 Soporte"].includes(r.name));
+  return interaction.member.roles.cache.some((r) => ["🛠️ Staff", "🎫 Support"].includes(r.name));
 }
 
 const reasonLabels = {
-  comprar: "Comprar",
-  estado: "Estado de pedido",
-  soporte: "Soporte",
-  reposicion: "Reposicion",
-  entrega: "Entrega manual",
-  otro: "Otro motivo",
+  purchase: "Purchase",
+  status: "Order status",
+  support: "Support",
+  replacement: "Replacement",
+  delivery: "Manual delivery",
+  other: "Other",
 };
 
 // channelId -> timestamp del ultimo mensaje visto (en memoria, se resetea si el bot reinicia)
@@ -119,12 +119,12 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
   const guild = interaction.guild;
   const existing = guild.channels.cache.find((c) => c.name === channelName);
   if (existing) {
-    await interaction.editReply({ content: `Ya tienes un ticket abierto: ${existing}` });
+    await interaction.editReply({ content: `You already have an open ticket: ${existing}` });
     return;
   }
 
   const supportRoleIds = guild.roles.cache
-    .filter((r) => ["🛠️ Staff", "🎫 Soporte"].includes(r.name))
+    .filter((r) => ["🛠️ Staff", "🎫 Support"].includes(r.name))
     .map((r) => r.id);
 
   const channel = await guild.channels.create({
@@ -148,13 +148,13 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
   lastActivity.set(channel.id, Date.now());
 
   const closeRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar ticket").setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId("close_ticket").setLabel("Close ticket").setStyle(ButtonStyle.Danger)
   );
 
   const embed = new EmbedBuilder()
-    .setTitle(reasonLabel ? `Ticket: ${reasonLabel}` : "Ticket de soporte")
+    .setTitle(reasonLabel ? `Ticket: ${reasonLabel}` : "Support ticket")
     .setDescription(
-      `${reasonLabel ? `Motivo: **${reasonLabel}**\n\n` : ""}Contanos que necesitas, el staff te atiende pronto.`
+      `${reasonLabel ? `Reason: **${reasonLabel}**\n\n` : ""}Tell us what you need, staff will be with you shortly.`
     )
     .setColor(0x3355ff);
 
@@ -184,28 +184,28 @@ async function createTicketChannel(interaction, channelName, reasonLabel) {
     }
   }
 
-  await interaction.editReply({ content: `Ticket creado: ${channel}` });
+  await interaction.editReply({ content: `Ticket created: ${channel}` });
 }
 
 client.on("interactionCreate", async (interaction) => {
   if (interaction.isButton() && interaction.customId === "verify_me") {
-    const verifiedRole = interaction.guild.roles.cache.find((r) => r.name === "✅ Verificado");
+    const verifiedRole = interaction.guild.roles.cache.find((r) => r.name === "✅ Verified");
     if (!verifiedRole) {
       return interaction.reply({
-        content: "No encontre el rol de verificado. Corre /setup-servidor de nuevo o crealo a mano.",
+        content: "Could not find the verified role. Ask staff to run /setup-servidor again or create it manually.",
         ephemeral: true,
       });
     }
     if (interaction.member.roles.cache.has(verifiedRole.id)) {
-      return interaction.reply({ content: "Ya estabas verificado.", ephemeral: true });
+      return interaction.reply({ content: "You were already verified.", ephemeral: true });
     }
     await interaction.member.roles.add(verifiedRole).catch(() => {});
-    return interaction.reply({ content: "✅ Listo, ya tienes acceso al resto del servidor.", ephemeral: true });
+    return interaction.reply({ content: "✅ Done, you now have access to the rest of the server.", ephemeral: true });
   }
 
-  // ---------- Cerrar ticket (boton) ----------
+  // ---------- Close ticket (button) ----------
   if (interaction.isButton() && interaction.customId === "close_ticket") {
-    await interaction.reply("Cerrando ticket en 5 segundos...");
+    await interaction.reply("Closing this ticket in 5 seconds...");
     setTimeout(() => closeTicket(interaction.channel, interaction.user.tag), 5000);
     return;
   }
@@ -213,7 +213,7 @@ client.on("interactionCreate", async (interaction) => {
   // ---------- Menu de motivos del panel ----------
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_reason_select") {
     const reasonKey = interaction.values[0];
-    const reasonLabel = reasonLabels[reasonKey] || "Otro motivo";
+    const reasonLabel = reasonLabels[reasonKey] || "Other";
     const channelName = `${reasonKey}-${interaction.user.username}`.toLowerCase().slice(0, 90);
     return createTicketChannel(interaction, channelName, reasonLabel);
   }
@@ -266,33 +266,33 @@ client.on("interactionCreate", async (interaction) => {
 
     const embed = new EmbedBuilder()
       .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
-      .setTitle("🛍️ Centro de soporte")
+      .setTitle("🛍️ Support center")
       .setDescription(
-        "**Bienvenido.** Elegi abajo la categoria que mejor describe por que abris el ticket.\n⚡ Respuesta rapida · 🔒 Atencion privada"
+        "**Welcome.** Pick the category below that best describes why you're opening a ticket.\n⚡ Fast response · 🔒 Private support"
       )
       .addFields(
-        { name: "🛒 Comprar", value: "Ver disponibilidad o precios.", inline: true },
-        { name: "📊 Estado de pedido", value: "Segui tu compra.", inline: true },
-        { name: "🛠️ Soporte", value: "Consultas generales.", inline: true },
-        { name: "🔄 Reposicion", value: "Producto fallo o vencio.", inline: true },
-        { name: "📦 Entrega manual", value: "No recibiste tu pedido.", inline: true },
-        { name: "❓ Otro motivo", value: "Cualquier otra cosa.", inline: true }
+        { name: "🛒 Purchase", value: "Check availability or pricing.", inline: true },
+        { name: "📊 Order status", value: "Track your purchase.", inline: true },
+        { name: "🛠️ Support", value: "General questions.", inline: true },
+        { name: "🔄 Replacement", value: "Product failed or expired.", inline: true },
+        { name: "📦 Manual delivery", value: "Didn't receive your order.", inline: true },
+        { name: "❓ Other", value: "Anything else.", inline: true }
       )
       .setColor(0x7c5cff)
       .setThumbnail(interaction.guild.iconURL({ size: 256 }) || null)
-      .setFooter({ text: "ZoneSell • Sistema de tickets" })
+      .setFooter({ text: "ZoneSell • Ticket system" })
       .setTimestamp();
 
     const select = new StringSelectMenuBuilder()
       .setCustomId("ticket_reason_select")
-      .setPlaceholder("Selecciona un motivo para abrir tu ticket")
+      .setPlaceholder("Select a reason to open your ticket")
       .addOptions(
-        { label: "Comprar", value: "comprar", emoji: "🛒" },
-        { label: "Estado de pedido", value: "estado", emoji: "📊" },
-        { label: "Soporte", value: "soporte", emoji: "🛠️" },
-        { label: "Reposicion", value: "reposicion", emoji: "🔄" },
-        { label: "Entrega manual", value: "entrega", emoji: "📦" },
-        { label: "Otro motivo", value: "otro", emoji: "❓" }
+        { label: "Purchase", value: "purchase", emoji: "🛒" },
+        { label: "Order status", value: "status", emoji: "📊" },
+        { label: "Support", value: "support", emoji: "🛠️" },
+        { label: "Replacement", value: "replacement", emoji: "🔄" },
+        { label: "Manual delivery", value: "delivery", emoji: "📦" },
+        { label: "Other", value: "other", emoji: "❓" }
       );
 
     const row = new ActionRowBuilder().addComponents(select);
@@ -319,7 +319,7 @@ client.on("interactionCreate", async (interaction) => {
     });
 
     const embed = new EmbedBuilder()
-      .setDescription(`🔁 Este ticket fue transferido de ${interaction.user} a ${nuevo}.`)
+      .setDescription(`🔁 This ticket was transferred from ${interaction.user} to ${nuevo}.`)
       .setColor(0x3355ff);
     await interaction.channel.send({ embeds: [embed] });
 
@@ -341,7 +341,7 @@ client.on("interactionCreate", async (interaction) => {
       return interaction.reply({ content: "Este comando solo funciona dentro de un ticket.", ephemeral: true });
     }
     const embed = new EmbedBuilder()
-      .setDescription(`🙋 Ticket reclamado por ${interaction.user}. Te atiende directamente desde ahora.`)
+      .setDescription(`🙋 This ticket was claimed by ${interaction.user}. You're being helped directly now.`)
       .setColor(0x3355ff);
     await interaction.channel.send({ embeds: [embed] });
     return interaction.reply({ content: "Ticket reclamado.", ephemeral: true });
@@ -428,14 +428,14 @@ client.on("interactionCreate", async (interaction) => {
     const minutos = interaction.options.getInteger("minutos") ?? 10;
 
     const startEmbed = new EmbedBuilder()
-      .setDescription(`⏱️ Contador iniciado: **${minutos} minuto${minutos === 1 ? "" : "s"}**`)
+      .setDescription(`⏱️ Timer started: **${minutos} minute${minutos === 1 ? "" : "s"}**`)
       .setColor(0x3355ff);
     await interaction.reply({ embeds: [startEmbed] });
 
     setTimeout(async () => {
       try {
         const doneEmbed = new EmbedBuilder()
-          .setDescription(`⏰ <@${interaction.user.id}> se cumplieron los **${minutos} minuto${minutos === 1 ? "" : "s"}**.`)
+          .setDescription(`⏰ <@${interaction.user.id}> your **${minutos} minute${minutos === 1 ? "" : "s"}** are up.`)
           .setColor(0xffc53d);
         await interaction.followUp({ embeds: [doneEmbed] });
       } catch {
@@ -452,18 +452,18 @@ client.on("interactionCreate", async (interaction) => {
     }
     const user = interaction.options.getUser("usuario");
     const mensaje =
-      interaction.options.getString("mensaje") || "Te hemos respondido, revisa el mensaje cuando puedas.";
+      interaction.options.getString("mensaje") || "We've replied to you, check the message when you can.";
 
     const embed = new EmbedBuilder()
-      .setAuthor({ name: "ZoneSell | Notificacion" })
-      .setTitle("📩 Nueva notificacion")
+      .setAuthor({ name: "ZoneSell | Notification" })
+      .setTitle("📩 New notification")
       .addFields(
-        { name: "De", value: `${interaction.user}`, inline: true },
-        { name: "Canal", value: `${interaction.channel}`, inline: true },
-        { name: "Mensaje", value: mensaje, inline: false }
+        { name: "From", value: `${interaction.user}`, inline: true },
+        { name: "Channel", value: `${interaction.channel}`, inline: true },
+        { name: "Message", value: mensaje, inline: false }
       )
       .setColor(0x3355ff)
-      .setFooter({ text: "ZoneSell • Sistema de notificaciones" })
+      .setFooter({ text: "ZoneSell" })
       .setTimestamp();
 
     await interaction.deferReply({ ephemeral: true });
@@ -648,14 +648,14 @@ client.on("interactionCreate", async (interaction) => {
       });
       const embed = new EmbedBuilder()
         .setDescription(
-          `🔗 Tu link de invitación personal:\n**https://discord.gg/${invite.code}**\n\nCada persona que se una con este link cuenta para tu ranking. Usa \`/ranking-invitados\` para ver cuántos llevas.`
+          `🔗 Your personal invite link:\n**https://discord.gg/${invite.code}**\n\nEveryone who joins with this link counts toward your ranking. Use \`/ranking-invitados\` to see how many you've got.`
         )
         .setColor(0x3355ff);
       return interaction.editReply({ embeds: [embed] });
     } catch (err) {
       console.error(err);
       return interaction.editReply(
-        "No se pudo crear el link. El bot necesita el permiso 'Crear invitación' en este canal."
+        "Couldn't create the link. The bot needs the 'Create Invite' permission in this channel."
       );
     }
   }
@@ -676,17 +676,17 @@ client.on("interactionCreate", async (interaction) => {
       const ranking = [...byInviter.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
       if (ranking.length === 0) {
-        return interaction.editReply("Todavía no hay invitaciones registradas.");
+        return interaction.editReply("No invites recorded yet.");
       }
 
       const medals = ["🥇", "🥈", "🥉"];
       const lines = ranking.map(
-        ([id, uses], i) => `${medals[i] || `${i + 1}.`} <@${id}> — **${uses}** invitados`
+        ([id, uses], i) => `${medals[i] || `${i + 1}.`} <@${id}> — **${uses}** invites`
       );
 
       const embed = new EmbedBuilder()
         .setAuthor({ name: "ZoneSell", iconURL: interaction.guild.iconURL() || undefined })
-        .setTitle("🏆 Ranking de invitaciones")
+        .setTitle("🏆 Invite leaderboard")
         .setDescription(lines.join("\n"))
         .setColor(0xffc53d)
         .setFooter({ text: "ZoneSell" })
@@ -696,7 +696,7 @@ client.on("interactionCreate", async (interaction) => {
     } catch (err) {
       console.error(err);
       return interaction.editReply(
-        "No se pudieron consultar las invitaciones. El bot necesita el permiso 'Gestionar servidor'."
+        "Couldn't fetch invites. The bot needs the 'Manage Server' permission."
       );
     }
   }
@@ -719,24 +719,24 @@ client.on("interactionCreate", async (interaction) => {
 
     const fields = [];
     if (groups.public.length) {
-      fields.push({ name: "👤 Para cualquiera", value: "\u200B" });
+      fields.push({ name: "👤 Anyone", value: "\u200B" });
       for (const c of groups.public) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
     }
     if (groups.staff.length) {
-      fields.push({ name: "🛠️ Solo staff", value: "\u200B" });
+      fields.push({ name: "🛠️ Staff only", value: "\u200B" });
       for (const c of groups.staff) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
     }
     if (groups.owner.length) {
-      fields.push({ name: "👑 Solo owner", value: "\u200B" });
+      fields.push({ name: "👑 Owner only", value: "\u200B" });
       for (const c of groups.owner) fields.push({ name: `/${c.name}`, value: c.description || "\u200B" });
     }
 
     const embed = new EmbedBuilder()
       .setAuthor({ name: "ZoneSell | Bot" })
-      .setTitle("📖 Comandos disponibles")
+      .setTitle("📖 Available commands")
       .addFields(fields)
       .setColor(0x3355ff)
-      .setFooter({ text: "ZoneSell • Generado automaticamente, siempre al dia" });
+      .setFooter({ text: "ZoneSell • Auto-generated, always up to date" });
 
     return interaction.editReply({ embeds: [embed] });
   }
@@ -753,19 +753,19 @@ client.on("interactionCreate", async (interaction) => {
       : interaction.channel;
 
     if (!targetChannel) {
-      return interaction.reply({ content: "No encontre el canal de resenas (revisa PUBLIC_REVIEWS_CHANNEL_ID).", ephemeral: true });
+      return interaction.reply({ content: "Couldn't find the reviews channel (check PUBLIC_REVIEWS_CHANNEL_ID).", ephemeral: true });
     }
 
     const embed = new EmbedBuilder()
-      .setAuthor({ name: `Resena de ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
-      .setTitle("✨ Nuevo vouch")
-      .setDescription("¡Gracias por tu feedback!")
+      .setAuthor({ name: `Review by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+      .setTitle("✨ New vouch")
+      .setDescription("Thanks for your feedback!")
       .addFields(
-        { name: "👤 Cliente", value: `${interaction.user}`, inline: true },
-        { name: "🏆 Calificacion", value: "⭐".repeat(calificacion), inline: true },
-        { name: "📦 Producto", value: producto, inline: true },
-        { name: "🛍️ Vendedor", value: `${vendedor}`, inline: false },
-        ...(comentario ? [{ name: "⚡ Comentario", value: comentario, inline: false }] : [])
+        { name: "👤 Customer", value: `${interaction.user}`, inline: true },
+        { name: "🏆 Rating", value: "⭐".repeat(calificacion), inline: true },
+        { name: "📦 Product", value: producto, inline: true },
+        { name: "🛍️ Seller", value: `${vendedor}`, inline: false },
+        ...(comentario ? [{ name: "⚡ Comment", value: comentario, inline: false }] : [])
       )
       .setColor(0xffc53d)
       .setFooter({ text: "ZoneSell" })
@@ -774,9 +774,9 @@ client.on("interactionCreate", async (interaction) => {
     await targetChannel.send({ embeds: [embed] });
 
     if (targetChannel.id !== interaction.channel.id) {
-      return interaction.reply({ content: `Vouch publicado en ${targetChannel}. ¡Gracias!`, ephemeral: true });
+      return interaction.reply({ content: `Vouch posted in ${targetChannel}. Thanks!`, ephemeral: true });
     }
-    return interaction.reply({ content: "¡Gracias por tu vouch!", ephemeral: true });
+    return interaction.reply({ content: "Thanks for your vouch!", ephemeral: true });
   }
 
   // ---------- /factura ----------
@@ -885,7 +885,7 @@ setInterval(async () => {
       } else if (hoursSince >= INACTIVITY_HOURS && !warnedInactive.has(channel.id)) {
         warnedInactive.add(channel.id);
         await channel
-          .send("⏳ Este ticket lleva mucho tiempo sin actividad. Se va a cerrar solo en 1 hora si nadie escribe.")
+          .send("⏳ This ticket has been inactive for a while. It will close automatically in 1 hour if no one replies.")
           .catch(() => {});
       }
     }

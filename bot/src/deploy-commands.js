@@ -2,7 +2,7 @@ import "dotenv/config";
 import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
 
 const commands = [
-  new SlashCommandBuilder().setName("ticket").setDescription("Abre un ticket de soporte privado"),
+  new SlashCommandBuilder().setName("ticket").setDescription("Open a private support ticket"),
 
   new SlashCommandBuilder()
     .setName("editar-mensaje")
@@ -49,13 +49,13 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("vouch")
-    .setDescription("Deja una resena publica sobre tu compra")
-    .addUserOption((opt) => opt.setName("vendedor").setDescription("Quien te atendio").setRequired(true))
-    .addStringOption((opt) => opt.setName("producto").setDescription("Que compraste").setRequired(true))
+    .setDescription("Leave a public review about your purchase")
+    .addUserOption((opt) => opt.setName("vendedor").setDescription("Who helped you").setRequired(true))
+    .addStringOption((opt) => opt.setName("producto").setDescription("What you bought").setRequired(true))
     .addIntegerOption((opt) =>
       opt
         .setName("calificacion")
-        .setDescription("Del 1 al 5")
+        .setDescription("1 to 5")
         .setRequired(true)
         .addChoices(
           { name: "⭐", value: 1 },
@@ -65,15 +65,15 @@ const commands = [
           { name: "⭐⭐⭐⭐⭐", value: 5 }
         )
     )
-    .addStringOption((opt) => opt.setName("comentario").setDescription("Cuentanos como te fue").setRequired(false)),
+    .addStringOption((opt) => opt.setName("comentario").setDescription("Tell us how it went").setRequired(false)),
 
-  new SlashCommandBuilder().setName("ayuda").setDescription("Lista todos los comandos del bot y que hacen"),
+  new SlashCommandBuilder().setName("ayuda").setDescription("Lists all bot commands and what they do"),
 
-  new SlashCommandBuilder().setName("invitar").setDescription("Genera tu link de invitacion personal para el servidor"),
+  new SlashCommandBuilder().setName("invitar").setDescription("Generates your personal invite link for the server"),
 
   new SlashCommandBuilder()
     .setName("ranking-invitados")
-    .setDescription("Muestra quien ha traido mas gente al servidor con su link"),
+    .setDescription("Shows who has brought the most people to the server with their link"),
 
   new SlashCommandBuilder()
     .setName("setup-servidor")
@@ -98,9 +98,9 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("timer")
-    .setDescription("Inicia un contador y avisa cuando termine")
+    .setDescription("Starts a timer and notifies you when it's done")
     .addIntegerOption((opt) =>
-      opt.setName("minutos").setDescription("Minutos (por defecto 10)").setRequired(false)
+      opt.setName("minutos").setDescription("Minutes (10 by default)").setRequired(false)
     ),
 
   new SlashCommandBuilder()
