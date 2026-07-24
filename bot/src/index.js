@@ -579,11 +579,18 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.commandName === "invitar") {
     await interaction.deferReply({ ephemeral: true });
     try {
-      const invite = await interaction.channel.createInvite({
-        maxAge: 0,
-        maxUses: 0,
-        unique: true,
-      });
+      const existingInvites = await interaction.guild.invites.fetch();
+      let invite = existingInvites.find(
+        (inv) => inv.inviter?.id === interaction.user.id && inv.maxAge === 0 && inv.maxUses === 0
+      );
+
+      if (!invite) {
+        invite = await interaction.channel.createInvite({
+          maxAge: 0,
+          maxUses: 0,
+        });
+      }
+
       const embed = new EmbedBuilder()
         .setDescription(
           `🔗 Your personal invite link:\n**https://discord.gg/${invite.code}**\n\nEveryone who joins with this link counts toward your ranking. Use \`/ranking-invitados\` to see how many you've got.`
@@ -593,7 +600,7 @@ client.on("interactionCreate", async (interaction) => {
     } catch (err) {
       console.error(err);
       return interaction.editReply(
-        "Couldn't create the link. The bot needs the 'Create Invite' permission in this channel."
+        "Couldn't create the link. The bot needs the 'Create Invite' and 'Manage Server' permissions."
       );
     }
   }
