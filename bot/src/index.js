@@ -569,12 +569,19 @@ client.on("interactionCreate", async (interaction) => {
         ];
       }
 
-      const category = await guild.channels.create({
-        name: cat.category,
-        type: ChannelType.GuildCategory,
-        permissionOverwrites: overwrites,
-      });
-      created++;
+      let category = guild.channels.cache.find(
+        (c) => c.type === ChannelType.GuildCategory && c.name === cat.category
+      );
+      if (category) {
+        await category.permissionOverwrites.set(overwrites).catch(() => {});
+      } else {
+        category = await guild.channels.create({
+          name: cat.category,
+          type: ChannelType.GuildCategory,
+          permissionOverwrites: overwrites,
+        });
+        created++;
+      }
 
       if (cat.ticketCategory) {
         ticketCategoryId = category.id;
@@ -589,20 +596,27 @@ client.on("interactionCreate", async (interaction) => {
             ]
           : [];
 
-        const channel = await guild.channels.create({
-          name: ch.name,
-          type: ch.type === "voice" ? ChannelType.GuildVoice : ChannelType.GuildText,
-          parent: category.id,
-          permissionOverwrites: channelOverwrites,
-        });
-        created++;
+        let channel = guild.channels.cache.find((c) => c.parentId === category.id && c.name === ch.name);
+        const isNew = !channel;
 
-        if (ch.message) {
+        if (channel) {
+          await channel.permissionOverwrites.set(channelOverwrites).catch(() => {});
+        } else {
+          channel = await guild.channels.create({
+            name: ch.name,
+            type: ch.type === "voice" ? ChannelType.GuildVoice : ChannelType.GuildText,
+            parent: category.id,
+            permissionOverwrites: channelOverwrites,
+          });
+          created++;
+        }
+
+        if (isNew && ch.message) {
           const msgEmbed = new EmbedBuilder().setDescription(ch.message).setColor(0x3355ff);
           await channel.send({ embeds: [msgEmbed] }).catch(() => {});
         }
 
-        if (ch.isVerifyChannel) {
+        if (isNew && ch.isVerifyChannel) {
           verifyChannelId = channel.id;
           const verifyEmbed = new EmbedBuilder()
             .setTitle("✅ Verificate para entrar")
@@ -612,6 +626,8 @@ client.on("interactionCreate", async (interaction) => {
             new ButtonBuilder().setCustomId("verify_me").setLabel("Verificarme").setStyle(ButtonStyle.Success)
           );
           await channel.send({ embeds: [verifyEmbed], components: [verifyRow] }).catch(() => {});
+        } else if (ch.isVerifyChannel) {
+          verifyChannelId = channel.id;
         }
 
         if (created % 10 === 0) {
